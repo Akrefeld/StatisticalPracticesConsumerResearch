@@ -1,0 +1,1312 @@
+---
+title: "Methodological Detail Appendix: Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2011 and 2018"
+author: "Antonia Krefeld-Schwalb and Benjamin Scheibehenne"
+output: pdf_document
+---
+
+The following skritp runs all analyses reported in the manuscript "Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2011 and 2018". 
+
+To re-run the analyses make sure that the required packages are installed and the data files 
+ 'Data.csv' with all arythmically coded manuscritpts,  'Datahandcoded.csv' with all handcoded articles and  "simulatedresults.Rdata" with the simulations are in your working directory.
+ 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, error=FALSE, message=FALSE,warning = FALSE)
+
+library(scales)
+library(knitr)
+library(stringr)
+library(msm)
+library(coda)
+library(dplyr)
+library(lme4)
+library("devtools")
+library(tidyr)
+require(data.table)
+library(afex)
+require(parallel)
+library(ggplot2)
+library("emmeans")
+library(pwr)
+
+
+```
+
+\section{Preparation}
+
+```{r loadData, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+data <- read.csv("Data.csv", sep = ";")
+
+# data = data[data$FFtest != "[]"|data$Tttest != "[]" ,]
+data = data[!(duplicated(data[,1:20])),]
+
+
+```
+
+
+```{r ReadFtests, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+pFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[1]), split = ",")))
+FFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$FFtests[1]), split = ",")))
+df1=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d1Ftests[1]), split = ",")))
+df2=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d2Ftests[1]), split = ",")))
+
+NoStudyVec = rep(NA, length(data[,1]))
+
+pFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[1]), split = ",")))
+FtestCom <-  unlist(strsplit(gsub("\\[|\\]","",data$Ftests[1]), split = "', '"))
+Journal = rep(data$Journal[1], length(FtestCom))
+Year = rep(data$Year[1], length(FtestCom))
+NoStudy=rep(max(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[1]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[1]), split = ",")))), length(FtestCom))
+Mturk = rep(data$Mturk[1] != "[]", length(FtestCom))
+Lab = rep(data$LabStudy[1] != "[]", length(FtestCom))
+Field = rep(data$FieldStudy[1] != "[]", length(FtestCom))
+Article = rep(1, length(pFtest))
+test = rep(0, length(data$pvaluesFtests))
+test[1] = length(FtestCom) - length(pFtest)
+
+if(length(pFtest) < 1){FtestCom = pFtest=FFtest=df1=df2= NA
+                          Journal= data$Journal[1]
+                          Year =data$Year[1]
+                          Article =1
+                          NoStudy= max(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[1]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[1]), split = ","))))
+                          Mturk = data$Mturk[1] != "[]"
+                          Lab= data$LabStudy[1] != "[]"
+                          Field= data$FieldStudy[1] != "[]"
+                          }
+
+
+dfpFtest <- cbind(FtestCom, 
+                  pFtest, 
+                  FFtest, 
+                  df1, 
+                  df2, 
+                  Journal, 
+                  Year, 
+                  Article, 
+                  NoStudy,
+                  Mturk,
+                  Lab,
+                  Field)
+errors = 0
+for (i in 2:length(data$pvaluesFtests)){
+  FtestCom <-  unlist(strsplit(gsub("\\[|\\]","", data$Ftests[i]), split = "', '"))
+  pFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[i]), split = ",")))
+  FFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$FFtests[i]), split = ",")))
+  
+  NoStudy=rep(max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ","))))), length(FtestCom))
+  
+  df1=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d1Ftests[i]), split = ",")))
+  df2=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d2Ftests[i]), split = ",")))
+
+  test[i] = length(FtestCom) == length(pFtest) & length(FtestCom) == length(FFtest) & length(FtestCom)== length(df1) & length(FtestCom) == length(df2)
+
+  Journal = rep(data$Journal[i], length(FtestCom))
+  Year = rep(data$Year[i], length(FtestCom))
+  Article = rep(i, length(pFtest))
+  Mturk = rep(length(unlist(strsplit(gsub("\\[|\\]|\\'","",data$Mturk[i]), split = ","))), length(FtestCom))
+  Lab = rep(data$LabStudy[i] != "[]", length(FtestCom))
+  Field = rep(data$FieldStudy[i] != "[]", length(FtestCom))
+  
+  if(length(pFtest) < 1){FtestCom = pFtest=FFtest=df1=df2= NA
+                          Journal= data$Journal[i]
+                          Year =data$Year[i]
+                          Article =i
+                          NoStudy= max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ",")))))
+                          NoStudyVec[i]= max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ",")))))
+                          Mturk = data$Mturk[i]!= "[]"
+                          Lab= data$LabStudy[i] != "[]"
+                          Field= data$FieldStudy[i] != "[]"
+                          }
+
+  
+   
+  dfpFtest <- rbind(dfpFtest,
+                    cbind(FtestCom,
+                          pFtest, 
+                          FFtest, 
+                          df1, 
+                          df2, 
+                          Journal,
+                          Year, 
+                          Article,
+                          NoStudy,
+                          Mturk,
+                          Lab,
+                          Field))
+
+}
+
+
+
+errorsF = which(test == F) 
+
+
+
+dfpFtest[which(dfpFtest[,11]==1),11]= TRUE
+dfpFtest[which(dfpFtest[,11]==0),11]= FALSE
+dfpFtest[,11]= factor(dfpFtest[,11])
+
+
+dfpFtest[which(dfpFtest[,12]==1),12]= TRUE
+dfpFtest[which(dfpFtest[,12]==0),12]= FALSE
+dfpFtest[,12]= factor(dfpFtest[,12])
+
+dfpFtest = as.data.frame(dfpFtest)
+
+dfpFtest[which(dfpFtest[,9] == -Inf), 9] = 1
+dfpFtest[,9] = as.numeric(as.character(dfpFtest[,9]))
+dfpFtest[which(dfpFtest[,9] > 12), 9] = 1
+dfpFtest[,1] = gsub("p p", "p =", dfpFtest[,1])
+dfpFtest[,1] = gsub("pp", "p =", dfpFtest[,1])
+dfpFtest[,1] = gsub("p N", "p >", dfpFtest[,1])
+
+dfpFtest$Mturk[dfpFtest$Mturk== "FALSE"] = 0 
+dfpFtest$Mturk = as.numeric(as.character(dfpFtest$Mturk))
+
+
+exactF =0
+
+exactF = 1 - grepl("b|<|>",dfpFtest[,1])
+prepF = as.numeric(as.character(dfpFtest$pFtest))
+Fvalue = as.numeric(as.character(dfpFtest$FFtest))
+df1 = as.numeric(as.character(dfpFtest$df1))
+df2 = as.numeric(as.character(dfpFtest$df2))
+NF = df2 + df1 +1
+NpcF = NF/(df1 + 1)
+
+omega2=(Fvalue-1)/(Fvalue+(df2+1)/df1)
+eta2=Fvalue*df1/(Fvalue*df1+ df2)
+rF=sqrt(omega2)
+
+
+pcalF=1-pf(Fvalue, df1, df2)
+
+
+dfpFtest = cbind(dfpFtest, pcalF)
+dfpFtest = as.data.frame(dfpFtest)
+
+PerArticleF= data[,c(18:21,13)]
+for (i in 1:length(data$pvaluesFtests)){
+  PerArticleF$FperArticle[i] =sum(dfpFtest[,8]==i)
+  PerArticleF$FperArticle[i][data$Ftests[i] =="[]"] = 0
+  PerArticleF$FperArticlep[i] =sum(dfpFtest[,8]==i & as.numeric(as.character(dfpFtest[,10])) < .05)
+  PerArticleF$FperArticlep[i][data$Ftests[i] =="[]"] = 0
+  PerArticleF$NoStudy[i] =as.numeric(as.character(unique(dfpFtest$NoStudy[dfpFtest[,8]==i])))
+  if (is.na(as.numeric(as.character(unique(dfpFtest$NoStudy[dfpFtest[,8]==i]))))) PerArticleF$NoStudy[i] == 1
+  PerArticleF$Lab[i] =unique(dfpFtest$Lab[dfpFtest[,8]==i])
+  PerArticleF$Field[i] =unique(dfpFtest$Field[dfpFtest[,8]==i])
+  PerArticleF$MturkF[i] = PerArticleF[i,5]!="[]"
+  
+}
+
+
+
+```
+
+
+```{r Readttests, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+pTtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[1]), split = ",")))
+Tttests=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$Tttest[1]), split = ",")))
+df=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$dfttest[1]), split = ",")))
+pTtest=as.numeric(as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[1]), split = ","))))
+TtestCom <-  unlist(strsplit(gsub("\\[|\\]","",data$ttests[1]), split = "', '"))
+
+
+pTtest[length(TtestCom)==0] <- NA
+Tttests[length(TtestCom)==0] <- NA
+df[length(TtestCom)==0] <- NA
+TtestCom[length(TtestCom)==0] <- NA
+Journal = rep(data$Journal[1], length(TtestCom))
+Year = rep(data$Year[1], length(TtestCom))
+
+Article = rep(1, length(TtestCom))
+test = rep(0, length(data$pvaluesttests))
+test[1] = length(TtestCom) == length(Tttests) & length(TtestCom)== length(df) & length(TtestCom)== length(pTtest)
+NoStudy=rep(max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ","))))), length(TtestCom))
+Mturk = rep(data$Mturk[i] != "[]", length(TtestCom))
+Lab = rep(data$LabStudy[i] != "[]", length(TtestCom))
+Field = rep(data$FieldStudy[i] != "[]", length(TtestCom))
+  
+  if(length(pTtest) < 1){TtestCom = pTtest=Tttests=df= NA
+                          Journal= data$Journal[i]
+                          Year =data$Year[i]
+                          Article =i
+                          NoStudy=max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ",")))))
+                          Mturk = data$Mturk[i] != "[]"
+                          Lab= data$LabStudy[i] != "[]"
+                          Field= data$FieldStudy[i] != "[]"
+                          }
+
+dfpTtest <- cbind(TtestCom, pTtest, Tttests, df, Journal, Year, Article, NoStudy, Mturk, Lab, Field)
+  
+
+
+for (i in 2:length(data$pvaluesttests)){
+  TtestCom <-  unlist(strsplit(gsub("\\[|\\]","", data$ttests[i]), split = "', '"))
+  pTtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[i]), split = ",")))
+  Tttests=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$Tttest[i]), split = ",")))
+  df=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$dfttest[i]), split = ",")))
+   NoStudy=rep(max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ","))))), length(TtestCom))
+
+  Journal = rep(data$Journal[i], length(TtestCom))
+  Year = rep(data$Year[i], length(TtestCom))
+  Mturk = rep(length(unlist(strsplit(gsub("\\[|\\]|\\'","",data$Mturk[i]), split = ","))), length(TtestCom))
+  Article = rep(i, length(TtestCom))
+  Lab = rep(data$LabStudy[i] != "[]", length(TtestCom))
+  Field = rep(data$FieldStudy[i] != "[]", length(TtestCom))
+  
+  
+    if(length(pTtest) < 1){TtestCom = pTtest=Tttests=df= NA
+                          Journal= data$Journal[i]
+                          Year =data$Year[i]
+                          Article =i
+                          NoStudy= max(c(as.numeric(unlist(strsplit(gsub("\\[|\\]|experiment |\\'", "", data$NoExperiment[i]), split = ","))),as.numeric(unlist(strsplit(gsub("\\[|\\]|study |\\'", "", data$NoStudy[i]), split = ",")))))
+                          Mturk = data$Mturk[i]!= "[]"
+                          Lab= data$LabStudy[i] != "[]"
+                          Field= data$FieldStudy[i] != "[]"
+                          }
+    test[i] = length(TtestCom) == length(Tttests) & length(TtestCom)== length(df) & length(TtestCom)== length(pTtest)
+  if (test[i]==F) {
+    print(i)}
+  dfpTtest <- rbind(dfpTtest,
+                    cbind(TtestCom, 
+                          pTtest, 
+                          Tttests, 
+                          df, 
+                          Journal, 
+                          Year, 
+                          Article, 
+                          NoStudy, 
+                          Mturk, Lab, Field))
+                    
+}
+
+dfpTtest =as.data.frame(dfpTtest)
+
+
+errorsT = which(test == F)
+
+exactt = 1 - grepl("b|<|>",dfpTtest[,1])#str_count(dfpTtest[,1], "=") + str_count(dfpTtest[,1], "p")
+prept = as.numeric(as.character(dfpTtest$pTtest))
+Tvalue = as.numeric(as.character(dfpTtest$Tttests))
+Tvalue[Tvalue < 0 & !is.na(Tvalue)] = abs(Tvalue[Tvalue < 0& !is.na(Tvalue)])
+df = as.numeric(as.character(dfpTtest$df))
+
+Nt = df + 2
+NpCt = Nt/2
+
+d = 2*Tvalue/sqrt(Nt)
+
+
+
+#sqrt(N/.5 )*(d/(sqrt(2)))- qnorm(1-alpha)= qnorm(po)
+#transform d to r assuming equal sample sizes, thus correction factor a = 4
+rt = d/sqrt(d^2 + (Nt^2-2*Nt)/(.5*Nt)^2)
+
+dfpTtest$Mturk[dfpTtest$Mturk== "FALSE"] = 0 
+dfpTtest$Mturk = as.numeric(as.character(dfpTtest$Mturk))
+
+pcalt=1-pt(Tvalue, df,0)
+dfpTtest = cbind(dfpTtest, pcalt)
+
+
+dfpTtest[which(dfpTtest[,8] == -Inf), 8] = 1
+
+dfpTtest[,8] = as.numeric(as.character(dfpTtest[,8]))
+dfpTtest[which(dfpTtest[,8] > 14), 8] = 1
+
+
+dfpTtest[which(dfpTtest[,10]==1),10]= TRUE
+dfpTtest[which(dfpTtest[,10]==0),10]= FALSE
+dfpTtest[,10] = factor(dfpTtest[,10])
+
+dfpTtest[which(dfpTtest[,11]==1),11]= TRUE
+dfpTtest[which(dfpTtest[,11]==0),11]= FALSE
+dfpTtest[,11] = factor(dfpTtest[,11])
+
+
+PerArticlet= data[,c(18:21,13)]
+
+for (i in 1:length(data$pvaluesttests)){
+  PerArticlet$TperArticle[i] = sum(dfpTtest[,7]==i) 
+  PerArticlet$TperArticle[i][data$ttests[i] =="[]"] = 0
+  PerArticlet$TperArticlep[i] =sum(dfpTtest[,7]==i & as.numeric(as.character(dfpTtest[,9])) < .05)
+  PerArticlet$TperArticlep[i][data$ttests[i] =="[]"] = 0
+  PerArticlet$NoStudy[i] =as.numeric(as.character(unique(dfpTtest$NoStudy[dfpTtest[,7]==i])))
+  
+  if (is.na(as.numeric(as.character(unique(dfpTtest$NoStudy[dfpTtest[,7]==i])))))PerArticlet$NoStudy[i] == 1
+  PerArticlet$Lab[i] =unique(dfpTtest$Lab[dfpTtest[,7]==i])
+  PerArticlet$Field[i] =unique(dfpTtest$Field[dfpTtest[,7]==i])
+  PerArticlet$MturkF[i] = PerArticlet[i,5]!="[]"
+}
+
+```
+
+```{r Summary, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+PerArticle = PerArticlet[,-5]
+
+PerArticle[,5:6] = PerArticlet[,6:7]+PerArticleF[,7:8]
+
+colnames(PerArticle) =  c("Journal", "Year", "Issue", "Article", "Tests", "signp", "NoStudy", "Lab", "Field", "Mturk")
+
+
+dfpFtest = as.data.frame(dfpFtest)
+dfpTtest = as.data.frame(dfpTtest)
+
+
+summaryTests = rbind(cbind(NF, NpcF, rF,prepF, pcalF, exactF, dfpFtest$Journal, dfpFtest$Year, dfpFtest$Article, dfpFtest$NoStudy,dfpFtest$Mturk, dfpFtest$Lab, dfpFtest$Field, rep("F", length(NF))),
+                     cbind(Nt,NpCt, rt,prept, pcalt, exactt, dfpTtest$Journal, dfpTtest$Year, dfpTtest$Article, dfpTtest$NoStudy, dfpTtest$Mturk, dfpTtest$Lab, dfpTtest$Field, rep("t", length(Nt))))
+summaryTests = as.data.frame(summaryTests)
+
+summaryTests[,1] = as.numeric(as.character(summaryTests[,1]))
+summaryTests[,2] = as.numeric(as.character(summaryTests[,2]))
+
+summaryTests[,3] = as.numeric(as.character(summaryTests[,3]))
+summaryTests[,4] = as.numeric(as.character(summaryTests[,4]))
+
+summaryTests[,5] = as.numeric(as.character(summaryTests[,5]))
+
+
+
+
+colnames(summaryTests) = c("N", "Npc", "r", "prep", "pcal",  "exact", "Journal", "Year", "Article", "NoStudy", "Mturk", "Lab", "Field", "Type")
+summaryTests$Mturk[is.na(summaryTests$Mturk)] = 0
+summaryTests$NoStudy[is.na(summaryTests$NoStudy)] = 1
+
+summaryTests$MturkCat = as.numeric(as.character(summaryTests$Mturk))>1 
+
+
+summaryTestsRnd =summaryTests[1:length(unique(summaryTests$Article)),]
+for (a in 1:length(unique(summaryTests$Article))){
+  
+  Linetemp = sample(which(summaryTests$Article == unique(summaryTests$Article)[a]),1)
+  summaryTestsRnd[a,] = summaryTests[Linetemp,]
+  
+}
+
+
+```
+
+
+
+
+\section{Development of the sample size over time}
+
+Calculation of the sample size for the F-test:
+  
+Assuming that most of the test compare independent groups we approximated the sample sizes via $N = df_2 + df_1 +1$ \newline
+K = Number of groups\newline
+$df_1 = K-1$ \newline
+$df_2 = N-K$ \newline
+
+Calculation of the sample size for the t-test:
+  As for the F-tests we assumed that most of the studies represent manipulations between subjects. Thus we approximated the total sample size with the df of the t-tests: $N = df +2$
+  
+
+
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+
+data_list  <- list(
+  y = summaryTests$N[!is.na(summaryTests$N)],
+  x1 = as.numeric(summaryTests$Journal[!is.na(summaryTests$N)]),
+  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N)]),
+  x3 = as.numeric(summaryTests$Article[!is.na(summaryTests$N)]),
+  x4 = as.numeric(summaryTests$Type[!is.na(summaryTests$N)]),
+  x5 = as.numeric(summaryTests$MturkCat[!is.na(summaryTests$N)]),
+  Nx1 = length(unique(as.numeric(summaryTests$Journal[!is.na(summaryTests$N)]))),
+  y2 = summaryTests$Npc[!is.na(summaryTests$N)]
+)
+
+
+
+
+ggplot(summaryTests, aes(y = N, x= Year, col = Journal, group = Journal, shape = Journal))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  coord_cartesian(ylim= c(0,500))+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .01, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                #ggtitle("Total Sample Size")+
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+
+
+ggplot(summaryTests, aes(y = N, x= Year, col = MturkCat, group = MturkCat, shape = MturkCat))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  coord_cartesian(ylim= c(0,500))+
+  scale_color_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  scale_shape_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .05, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+
+
+ggplot(summaryTests, aes(y = Npc, x= Year, col = Journal, group = Journal, shape = Journal))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  coord_cartesian(ylim= c(0,500))+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .01, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                #ggtitle("Sample Size per Cell")+
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+```
+
+\subsection{Test the developement of sample sizes over time with a mixed mdel analysis}
+
+
+
+```{r}
+
+
+
+datafreq = as.data.frame(cbind(data_list$y,log(data_list$y +1), log(data_list$y2 +1),data_list$x1,as.numeric(data_list$x2),data_list$x3,data_list$x4,as.factor(data_list$x5)))
+colnames(datafreq) = c("N", "log(N)", "logNcp", "Journal","Year", "Article", "Type", "Mturk")
+
+datafreq$Journal= as.factor(datafreq$Journal)
+datafreq$Mturk= as.numeric(datafreq$Mturk)
+
+datafreq$Year= as.numeric(datafreq$Year)
+
+set_sum_contrasts()
+emmeans::emm_options(lmer.df = "asymptotic")
+
+modN = mixed(log(N)~ Year*Mturk +  Year*Journal + (1|Article), data=datafreq, method = "LRT")
+kable(cbind(c(round(coefficients(modN$full_model)$Article[1,],3)),
+round(confint(modN$full_model)[-c(1,2),],3)))
+```
+
+\subsection{Test the developement of sample sizes per cell over time with a mixed mdel analysis}
+
+```{r}
+
+
+modN = mixed(logNcp ~ Year*Mturk +  Year*Journal + (1|Article), data=datafreq, method = "LRT")
+kable(cbind(c(round(coefficients(modN$full_model)$Article[1,],3)),
+round(confint(modN$full_model)[-c(1,2),],3)))
+
+```
+
+
+
+\section{Development of the number of reported studies over time}
+
+
+```{r }
+
+## consider only those articles reporting at least one t or F-test
+
+ggplot(PerArticle[PerArticle$Tests > 0,], aes(y = NoStudy, x= factor(Year), col = Journal, group = Journal, shape = Journal))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+ stat_summary(fun.y = "mean", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size =  .75)+
+ stat_summary(fun.data = "mean_cl_normal", fun.args=list(conf.int=0.95),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .15, na.rm = TRUE) +
+  
+  scale_y_continuous(breaks = seq(1,13,1), name = "Number of Studies")+
+  scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                # ggtitle("Number of Studies per Article")+
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+
+
+ggplot(PerArticle[PerArticle$Tests > 0,], aes(y = NoStudy, x= factor(Year), col = Mturk, group = Mturk, shape = Mturk))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "mean", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "mean_cl_normal", fun.args=list(conf.int=0.95),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  # coord_cartesian(ylim= c(0,500))+
+  scale_color_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  scale_shape_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  scale_y_continuous(breaks = seq(1,13,1), name = "Number of Studies")+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .15, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+```
+
+\subsection{Test the development of the number of reported studies with a Poisson regression} model
+
+```{r,}
+m = glm(NoStudy ~ Year*Mturk+Year*Journal, data = PerArticle[PerArticle$Tests > 0,], family = "poisson")
+
+kable(cbind(round(coefficients(m),3)
+,round(confint(m),3)))
+
+
+
+
+```
+
+
+\section{Development of effect sizes}
+
+The effect sizes of the F, $\omega^2$, and t-test, d, were transformed to the commmon r-scale, to be analyzed and plotted together. 
+
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+data_list  <- list(
+  y = summaryTests$r[!is.na(summaryTests$r)],
+  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$r)]),
+  x1 = as.numeric(summaryTests$Journal[!is.na(summaryTests$r)]),
+  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$r)]),
+  x3 = as.numeric(summaryTests$Article[!is.na(summaryTests$r)]),
+  
+  x4 = as.numeric(summaryTests$MturkCat[!is.na(summaryTests$r)]),
+  Nx1 = length(unique(as.numeric(summaryTests$Journal[!is.na(summaryTests$r)])))
+)
+
+
+ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, shape = Journal))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  #coord_cartesian(ylim= c(0,500))+
+  
+  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal", guide = F)+
+  scale_color_manual(values = c("red","blue","orange", "black"), label= c("JCP", "JCR", "JMR", "Control"), name = "Journal", guide = F)+
+  geom_hline(yintercept = .1, linetype = 2)+
+  geom_text(aes(y = .13, x = 8.25, label = "small", col = "black" ))+
+  geom_hline(yintercept = .3, linetype = 2)+
+  geom_text(aes(y = .33, x = 8.25, label = "medium", col = "black"))+
+  geom_hline(yintercept = .5, linetype = 2)+
+  geom_text(aes(y = .53, x = 8.25, label = "large", col = "black" ))+
+
+  ylab(expression(paste("Effect size r")))+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .01, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                #ggtitle("Effect Size")+
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+
+
+```
+
+\subsection{Test the development of effect sizes with a mixed model}
+
+```{r,}
+
+datafreq = as.data.frame(cbind(data_list$y, log(data_list$y +1), data_list$x0, data_list$x1, data_list$x2, data_list$x3, data_list$x4))
+colnames(datafreq) = c("y", "logy", "N", "Journal","Year", "Article", "Mturk")
+datafreq$Journal= as.factor(datafreq$Journal)
+
+datafreq$Mturk= as.factor(datafreq$Mturk)
+
+datafreq$Year= as.numeric(datafreq$Year)
+
+
+modE= mixed(logy~ Year*Journal + Year*Mturk +(1|Article), data=datafreq, method = "LRT")
+
+
+
+kable(cbind(c(round(coefficients(modE$full_model)$Article[1,],3)),
+round(confint(modE$full_model)[-c(1,2),],3)))
+
+
+```
+
+
+
+\section{Development of the distribution of p-values}
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+
+OrigProb = c(with(summaryTests[summaryTests$Year == 1 & !is.na(summaryTests$r), ], c(mean(r),mean(pcal <.05), mean(pcal >=.005 & pcal <.05), mean(pcal <.005))),with(summaryTests[summaryTests$Year == 8 & !is.na(summaryTests$r), ], c(mean(r),mean(pcal <.05), mean(pcal >=.005 & pcal <.05), mean(pcal <.005))))
+
+
+summaryperAticle = cbind(aggregate(summaryTests$pcal < .05, list(summaryTests$Year, summaryTests$Journal, summaryTests$Article), mean),
+              aggregate(summaryTests$pcal < .06 & summaryTests$pcal >= .05, list(summaryTests$Year, summaryTests$Journal, summaryTests$Article), mean)[,4],
+              aggregate(summaryTests$pcal < .05 & summaryTests$pcal >= .04, list(summaryTests$Year, summaryTests$Journal, summaryTests$Article), mean)[,4],
+              aggregate(summaryTests$pcal < .05 & summaryTests$pcal >= .005, list(summaryTests$Year, summaryTests$Journal, summaryTests$Article), mean)[,4],
+              aggregate(summaryTests$pcal < .005, list(summaryTests$Year, summaryTests$Journal, summaryTests$Article), mean)[,4])
+
+
+colnames(summaryperAticle) = c("Year", "Journal", "Article", "Power", "Power0506", "Power0405", "Power00505", "Power005")
+
+
+summaryperAticle$Year = as.numeric(summaryperAticle$Year)
+
+
+
+ggplot(summaryperAticle, aes(y = Power0506, x= Year, color = Journal))+
+  #geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size =.7)+
+  # scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  theme_classic()+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .2, na.rm = TRUE) +
+  ylab(expression(paste("proportion of test results")))+
+ ggtitle("Interval: .05 <= p < .06")+
+  theme(tex = element_text(size=17),
+        plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(legend.position="none")+
+  scale_x_continuous(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm"))) 
+
+
+ggplot(summaryperAticle, aes(y = Power, x= Year, color = Journal))+
+  #geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size =.7)+
+  # scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  theme_classic()+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .2, na.rm = TRUE) +
+  ylab(expression(paste("proportion of test results")))+
+  ggtitle("Interval: p < .05")+
+  theme(tex = element_text(size=17),
+        plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(legend.position="none")+
+  scale_x_continuous(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm"))) 
+
+
+ggplot(summaryperAticle, aes(y = Power00505, x= Year, color = Journal))+
+  #geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size =.7)+
+  # scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  theme_classic()+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .2, na.rm = TRUE) +
+  ylab(expression(paste("proportion of test results")))+
+  ggtitle("Interval: .005 <= p < .05")+
+  theme(tex = element_text(size=17),
+        plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(legend.position="none")+
+  scale_x_continuous(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
+
+
+ggplot(summaryperAticle, aes(y = Power005, x= Year, color = Journal))+
+  #geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size =.7)+
+  # scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  theme_classic()+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .2, na.rm = TRUE) +
+  ylab(expression(paste("proportion of test results")))+
+  ggtitle("Interval: p < .005")+
+  theme(tex = element_text(size=17),
+        plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  
+  scale_x_continuous(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
+
+```
+
+\subsection{Test the distribution of proportion in the different intervals of the p-value distribution with linear models}
+
+```{r}
+
+print("Interval: .05 <= p < .06")
+MOD0506 = lm(Power0506 ~ Year*Journal, data = summaryperAticle[!is.na(summaryperAticle$Power),])  
+kable(cbind(round(coefficients(MOD0506),3)
+,round(confint(MOD0506),3)))
+
+
+print("Interval:p < .05")
+MOD05 = lm(Power ~ Year *Journal, data = summaryperAticle[!is.na(summaryperAticle$Power),])  
+kable(cbind(round(coefficients(MOD05),3)
+,round(confint(MOD05),3)))
+
+print("Interval: .005 <= p < .05")
+MOD00505 = lm(Power00505 ~ Year *Journal, data = summaryperAticle[!is.na(summaryperAticle$Power),])  
+kable(cbind(round(coefficients(MOD00505),3)
+,round(confint(MOD00505),3)))
+
+
+
+print("Interval: p < .005")
+MOD005 = lm(Power005 ~ Year *Journal, data = summaryperAticle[!is.na(summaryperAticle$Power),])  
+kable(cbind(round(coefficients(MOD005),3)
+,round(confint(MOD005),3)))
+
+
+```
+
+\section{read and prepare data for  hand coded manuscripts}
+
+
+```{r, loadmanuallycoded}
+dataCheck <- read.csv("Datahandcoded.csv", sep = ";")
+
+data = dataCheck
+
+```
+
+
+```{r ReadFtestsMC, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+pFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[1]), split = ",")))
+FFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$FFtests[1]), split = ",")))
+df1=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d1Ftests[1]), split = ",")))
+df2=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","", data$d2Ftests[1]), split = ",")))
+Within=unlist(strsplit(gsub("\\[|\\]|\\'","", data$within[1]), split = ","))
+Centrality=unlist(strsplit(gsub("\\[|\\]|\\'","", data$centrality[1]), split = ","))
+Mturk=unlist(strsplit(gsub("\\[|\\]|\\'","", data$Online.Sample[1]), split = ","))
+
+
+pFtest=as.numeric(unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[1]), split = ",")))
+FtestCom <-  unlist(strsplit(gsub("\\[|\\]","",data$Ftests[1]), split = "', '"))
+Journal = rep(data$Journal[1], length(FtestCom))
+Year = rep(data$Year[1], length(FtestCom))
+Article = rep(1, length(pFtest))
+test = rep(0, length(data$pvaluesFtests))
+test[1] = length(FtestCom) - length(pFtest)
+
+dfpFtest <- cbind(FtestCom, pFtest, FFtest, df1, df2, Centrality, Mturk, Journal, Year, Article, Within)
+
+
+for (i in 2:length(data$pvaluesFtests)){
+  FtestCom <-  unlist(strsplit(gsub("\\[|\\]","", data$Ftests[i]), split = "', '"))
+  pFtest=unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesFtests[i]), split = ","))
+  Centrality=unlist(strsplit(gsub("\\[|\\]|\\'","",data$centrality[i]), split = ","))
+  Within=unlist(strsplit(gsub("\\[|\\]|\\'","", data$within[i]), split = ","))
+  Mturk=unlist(strsplit(gsub("\\[|\\]|\\'","",data$Online.Sample[i]), split = ","))
+  FFtest=unlist(strsplit(gsub("\\[|\\]|\\'","",data$FFtests[i]), split = ","))
+  df1=unlist(strsplit(gsub("\\[|\\]|\\'","", data$d1Ftests[i]), split = ","))
+  df2=unlist(strsplit(gsub("\\[|\\]|\\'","", data$d2Ftests[i]), split = ","))
+  Within[length(FtestCom)==0] <- NA
+  Centrality[length(FtestCom)==0] <- NA
+  Mturk[length(FtestCom)==0] <- NA
+  pFtest[length(FtestCom)==0] <- NA
+  FtestCom[length(FtestCom)==0] <- NA
+  FFtest[length(FtestCom)==0] <- NA
+  df1[length(FtestCom)==0] <- NA
+  df2[length(FtestCom)==0] <- NA
+  test[i] = length(FtestCom) - length(pFtest)
+  Journal = rep(data$Journal[i], length(FtestCom))
+  Year = rep(data$Year[i], length(FtestCom))
+
+  Article = rep(i, length(pFtest))
+  dfpFtest <- rbind(dfpFtest,
+                    cbind(FtestCom, pFtest, FFtest, df1, df2, Centrality, Mturk, Journal, Year, Article, Within))
+}
+
+errorsF = which(test != 0)
+###number of wrong p-vlues bigger .05
+
+dfpFtest[,1] = gsub("p p", "p =", dfpFtest[,1])
+dfpFtest[,1] = gsub("pp", "p =", dfpFtest[,1])
+dfpFtest[,1] = gsub("p N", "p >", dfpFtest[,1])
+
+exactF =0
+dfpFtest = as.data.frame(dfpFtest)
+  
+exactF = 1 - grepl("b|<|>",dfpFtest$FtestCom)#str_count(dfpFtest[,1], "=") + str_count(dfpFtest[,1], "p")
+prepF = as.numeric(as.character(dfpFtest[,2]))
+Fvalue = as.numeric(as.character(dfpFtest[,3]))
+df1 = as.numeric(as.character(dfpFtest[,4]))
+df2 = as.numeric(as.character(dfpFtest[,5]))
+NF = df2 + df1 +1
+
+omega2=(Fvalue-1)/(Fvalue+(df2+1)/df1)
+eta2=Fvalue*df1/(Fvalue*df1+ df2)
+rF=sqrt(omega2)
+
+dfpFtest$Mturk[dfpFtest$Mturk ==" n"| dfpFtest$Mturk ==" n "| dfpFtest$Mturk =="   n"| dfpFtest$Mturk ==" N"|dfpFtest$Mturk ==" pn"| is.na(dfpFtest$Mturk)] = "n"
+dfpFtest$Mturk[dfpFtest$Mturk ==" y"| dfpFtest$Mturk ==" y "] = "y"
+
+dfpFtest$Mturk[dfpFtest$Mturk ==" y"| dfpFtest$Mturk ==" y "] = "y"
+dfpFtest$Mturk = factor(dfpFtest$Mturk)
+
+
+pcalF=1-pf(Fvalue, df1, df2)
+
+
+PerArticleF= data[,14:17]
+for (i in 1:length(data$pvaluesFtests)){
+  PerArticleF$FperArticle[i] =length(dfpFtest[dfpFtest[,9]==i,1]) 
+  PerArticleF$FperArticle[i][data$Ftests[i] =="[]"] = 0
+  PerArticleF$FperArticlep[i] =length(data$FtestCom[dfpFtest[,8]==i & as.numeric(dfpFtest[,2]) < .05]) 
+  PerArticleF$FperArticlep[data$Ftests =="[]"] = 0
+}
+
+dfpFtest$Centrality[as.character(dfpFtest$Centrality) == " p"] = 'p'
+dfpFtest$Centrality[as.character(dfpFtest$Centrality) == " m"] = 'm'
+dfpFtest$Centrality[as.character(dfpFtest$Centrality) == " c"] = 'c'
+dfpFtest$Centrality[as.character(dfpFtest$Centrality) == " NA"] = 'p'
+dfpFtest$Centrality[as.character(dfpFtest$Centrality) == "NA"] = 'p'
+dfpFtest$Centrality[is.na(dfpFtest$Centrality)] = 'p'
+
+
+
+```
+
+
+```{r ReadttestsMC, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+pTtest=unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[1]), split = ","))
+Tttests=unlist(strsplit(gsub("\\[|\\]|\\'","",data$Tttest[1]), split = ","))
+df=unlist(strsplit(gsub("\\[|\\]|\\'","", data$dfttest[1]), split = ","))
+pTtest=unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[1]), split = ","))
+TtestCom <-  unlist(strsplit(gsub("\\[|\\]","",data$ttests[1]), split = "', '"))
+
+CentralityT=unlist(strsplit(gsub("\\[|\\]|\\'","", data$centralityT[1]), split = ","))
+WithinT=unlist(strsplit(gsub("\\[|\\]|\\'","", data$withinT[1]), split = ","))
+
+Mturk=unlist(strsplit(gsub("\\[|\\]|\\'","", data$Online.Sample.1[1]), split = ","))
+pTtest[length(TtestCom)==0] <- NA
+Tttests[length(TtestCom)==0] <- NA
+df[length(TtestCom)==0] <- NA
+TtestCom[length(TtestCom)==0] <- NA
+Journal = rep(data$Journal[1], length(TtestCom))
+Year = rep(data$Year[1], length(TtestCom))
+Article = rep(1, length(TtestCom))
+dfpTtest <- cbind(TtestCom, pTtest, Tttests, df, CentralityT, Mturk, Journal,  Year, Article, WithinT)
+error=rep(NA, length(data$pvaluesttests))
+test = rep(0, length(data$pvaluesttests))
+test[1] = length(TtestCom) - length(pTtest)
+  
+for (i in 2:length(data$pvaluesttests)){
+  
+  TtestCom <-  unlist(strsplit(gsub("\\[|\\]","", data$ttests[i]), split = "', '"))
+  pTtest=unlist(strsplit(gsub("\\[|\\]|\\'","",data$pvaluesttests[i]), split = ","))
+  Tttests=unlist(strsplit(gsub("\\[|\\]|\\'","",data$Tttest[i]), split = ","))
+  CentralityT=unlist(strsplit(gsub("\\[|\\]|\\'","",data$centralityT[i]), split = ","))
+  WithinT=unlist(strsplit(gsub("\\[|\\]|\\'","", data$withinT[i]), split = ","))
+  
+  Mturk=unlist(strsplit(gsub("\\[|\\]|\\'","",data$Online.Sample.1[i]), split = ","))
+  df=unlist(strsplit(gsub("\\[|\\]|\\'","", data$dfttest[i]), split = ","))
+  
+  pTtest[length(TtestCom)==0] <- NA
+  CentralityT[length(TtestCom)==0] <- "NA"
+  WithinT[length(TtestCom)==0] <- NA
+  Mturk[length(TtestCom)==0] <- NA
+  Tttests[length(TtestCom)==0] <- NA
+  df[length(TtestCom)==0] <- NA
+  TtestCom[length(TtestCom)==0] <- NA
+  Journal = rep(data$Journal[i], length(TtestCom))
+  Year = rep(data$Year[i], length(TtestCom))
+  Article = rep(i, length(TtestCom))
+  
+  test[i] = length(TtestCom) - length(pTtest)
+ 
+  dfpTtest <- rbind(dfpTtest,
+                    cbind(TtestCom, pTtest, Tttests, df, CentralityT, Mturk, Journal, Year, Article, WithinT))
+}
+
+dfpTtest = as.data.frame(dfpTtest)
+
+
+
+dfpTtest$Mturk[dfpTtest$Mturk ==" n"| dfpTtest$Mturk ==" n "| is.na(dfpTtest$Mturk)] = "n"
+dfpTtest$Mturk[dfpTtest$Mturk ==" y"| dfpTtest$Mturk ==" y "] = "y"
+dfpTtest$Mturk = factor(dfpTtest$Mturk)
+
+errorsT = which(test != 0)
+errorsT 
+
+exactt = 1 - grepl("b|<|>",dfpTtest[,1])#str_count(dfpTtest[,1], "=") + str_count(dfpTtest[,1], "p")
+prept = as.numeric(as.character(dfpTtest[,2]))
+Tvalue = as.numeric(as.character(dfpTtest[,3]))
+Tvalue[Tvalue < 0 & !is.na(Tvalue)] = abs(Tvalue[Tvalue < 0& !is.na(Tvalue)])
+df = as.numeric(as.character(dfpTtest[,4]))
+
+Nt = df + 2
+
+d = 2*Tvalue/sqrt(Nt)
+
+
+
+#sqrt(N/.5 )*(d/(sqrt(2)))- qnorm(1-alpha)= qnorm(po)
+#transform d to r assuming equal sample sizes, thus correction factor a = 4
+rt = d/sqrt(d^2 + (Nt^2-2*Nt)/(.5*Nt)^2)
+
+pcalt=1-pt(Tvalue, df,0)
+dfpTtest = cbind(dfpTtest, pcalt)
+
+
+PerArticlet= data[,14:17]
+
+for (i in 1:length(data$pvaluesttests)){
+  PerArticlet$TperArticle[i] =length(dfpTtest[dfpTtest[,8]==i,1]) 
+  PerArticlet$TperArticle[i][data$ttests[i] =="[]"] = 0
+  PerArticlet$TperArticlep[i] =length(dfpTtest[dfpTtest[,8]==i & as.numeric(dfpTtest[,2]) < .05,1]) 
+  PerArticlet$TperArticlep[data$ttests[i] =="[]"] = 0
+}
+
+
+
+dfpTtest$CentralityT[as.character(dfpTtest$CentralityT) == " p"] = 'p'
+dfpTtest$CentralityT[as.character(dfpTtest$CentralityT) == " m"] = 'm'
+dfpTtest$CentralityT[as.character(dfpTtest$CentralityT) == " c"] = 'c'
+dfpTtest$CentralityT[as.character(dfpTtest$CentralityT) == " NA"] = 'p'
+dfpTtest$CentralityT[as.character(dfpTtest$CentralityT) == "NA"] = 'p'
+dfpTtest$CentralityT[is.na(dfpTtest$Centrality)] = 'p'
+
+
+
+```
+
+```{r, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+PerArticle = PerArticlet
+
+PerArticle[,5:6] = PerArticlet[,5:6]+PerArticleF[,5:6]
+
+colnames(PerArticle) =  c("Journal", "Year", "Issue", "Article", "Tests", "signp")
+
+
+
+dfpFtest = as.data.frame(dfpFtest)
+dfpTtest = as.data.frame(dfpTtest)
+
+
+
+summaryTests = rbind(cbind(NF,rF,prepF, pcalF, exactF, dfpFtest$Journal, dfpFtest$Year,dfpFtest$Mturk, dfpFtest$Article, rep("F", length(NF)),as.character(dfpFtest$Centrality),as.character(dfpFtest$Within)),
+                     cbind(Nt,rt,prept, pcalt, exactt, dfpTtest$Journal, dfpTtest$Year,dfpTtest$Mturk, dfpTtest$Article, rep("t", length(Nt)),as.character(dfpTtest$CentralityT),as.character(dfpTtest$WithinT)))
+summaryTests = as.data.frame(summaryTests)
+summaryTests[,1] = as.numeric(as.character(summaryTests[,1]))
+summaryTests[,2] = as.numeric(as.character(summaryTests[,2]))
+summaryTests[,3] = as.numeric(as.character(summaryTests[,3]))
+summaryTests[,4] = as.numeric(as.character(summaryTests[,4]))
+summaryTests[,5] = as.numeric(as.character(summaryTests[,5]))
+
+
+colnames(summaryTests) = c("N", "r", "prep", "pcal",  "exact", "Journal", "Year", "Mturk", "Article", "Type","Centrality", "Within")
+
+
+summaryTests$facPcal = NA
+summaryTests$facPcal[summaryTests[,4] < .01]= .01
+for (i in 2:length(seq(.01,1,.01))){
+  
+summaryTests$facPcal[summaryTests[,4] >= seq(.01,1,.01)[i-1] &summaryTests[,4] < seq(.01,1,.01)[i]]= seq(.01,1,.01)[i]
+}
+
+
+summaryTests$Centrality[as.character(summaryTests$Centrality) == " p"] = 'p'
+summaryTests$Centrality[as.character(summaryTests$Centrality) == " m"] = 'm'
+summaryTests$Centrality[as.character(summaryTests$Centrality) == " c"] = 'c'
+summaryTests$Centrality[as.character(summaryTests$Centrality) == " NA"] = 'p'
+summaryTests$Centrality[as.character(summaryTests$Centrality) == "NA"] = 'p'
+summaryTests$Centrality[is.na(summaryTests$Centrality)] = 'p'
+
+summaryTests$Centrality= factor(summaryTests$Centrality)
+
+summaryTests$facPcal = as.factor(summaryTests$facPcal)
+
+
+tapply(summaryTests$Within == "b", summaryTests$Year, mean, na.rm = T) + tapply(summaryTests$Within == " b", summaryTests$Year, mean, na.rm = T)
+
+
+testsforpcurve = cbind(c(as.character(dfpFtest$FtestCom[dfpFtest$Centrality =="c"]),as.character(dfpTtest$TtestCom[dfpTtest$CentralityT =="c"])), c(as.character(dfpFtest$Year[dfpFtest$Centrality =="c"]),as.character(dfpTtest$Year[dfpTtest$CentralityT =="c"])),
+                                                                                                                                                    c(as.character(dfpFtest$Journal[dfpFtest$Centrality =="c"]),as.character(dfpTtest$Journal[dfpTtest$CentralityT =="c"])))
+
+
+OrigProbC = round(c(with(summaryTests[summaryTests$Year == 1 & !is.na(summaryTests$r)& summaryTests$Centrality == "c", ], c(median(r),mean(pcal <.05), mean(pcal >=.005 & pcal <.05), mean(pcal <.005))),with(summaryTests[summaryTests$Year == 8 & !is.na(summaryTests$r)& summaryTests$Centrality == "c", ], c(median(r),mean(pcal <.05), mean(pcal >=.005 & pcal <.05), mean(pcal <.005)))),2)
+
+
+
+```
+
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+
+
+data_list  <- list(
+  y = summaryTests$N[!is.na(summaryTests$N)],
+  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$N)]),
+  x1 = as.numeric(summaryTests$Journal[!is.na(summaryTests$N)]),
+  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N)]),
+  x3 = as.numeric(summaryTests$Article[!is.na(summaryTests$N)]),
+  
+  x4 = summaryTests$Mturk[!is.na(summaryTests$N)]
+)
+
+
+ggplot(summaryTests, aes(y = N, x= factor(Year), group = Mturk, color = Mturk))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  scale_color_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  ylab(expression(paste("Sample Size")))+
+  # geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .5, na.rm = TRUE) +
+  scale_x_discrete(name = "Year", breaks = c(1,2,3,4,5,6,7,8), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
+                theme_classic()+  
+                ggtitle("Sample Size")+
+                theme(tex = element_text(size=18),
+                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
+
+datafreq = as.data.frame(cbind(data_list$y, log(data_list$y +1), data_list$x0, data_list$x1, data_list$x2, data_list$x3, data_list$x4))
+colnames(datafreq) = c("y", "logy", "N", "Journal", "Year", "Article", "Mturk")
+
+
+
+
+modN= mixed(logy~ Year*Mturk + Year*Journal +(1|Article), data=datafreq, method = "LRT")
+kable(cbind(c(round(coefficients(modN$full_model)$Article[1,],3)),
+round(confint(modN$full_model)[-c(1,2),],3)))
+
+
+```
+
+
+
+
+
+\section{Simulation of the development of the p-value distribution over time}
+
+
+```{r, variablesforsimulations, eval = T}
+
+
+N = c(109,204)
+
+
+# pwr.t.test(n = round(109/2), sig.level = .05, power = .55)
+# # 
+# # 
+# pwr.t.test(n = round(109/2), sig.level = .05, power = .65)
+# # 
+# # 
+# pwr.t.test(n = round(109/2), sig.level = .05, power = .75)
+
+
+
+x <- c(.41,.46, .51)
+y <- seq(0,.16, .01)
+d1 <- expand.grid(x = x, y = y)
+d = cbind(d1[,1], d1[,1] -d1[,2])
+
+r= d
+r[,1] = r[,1]/sqrt(r[,1]^2 + (109^2-2*109)/(.5*109)^2)
+r[,2] = r[,2]/sqrt(r[,2]^2 + (204^2-2*204)/(.5*204)^2)
+
+
+p = expand.grid(x = seq(0,1,.1), y = c(seq(0,1,.1)))
+
+p= p[abs(p[,1])>=abs(p[,2]),]
+
+cond = expand.grid(x = seq(1,length(d[,1])), y = seq(1,length(p[,1])))
+```
+
+To run the following simulations, change eval = F to eval = T, or run the chunk individually in R. The simulations take a very long time to be completed. that is why the following summaries of the bestfitting results is based on a previsously ran simulation.
+
+```{r, simulations, eval = F}
+###Simulation was done on Columbias Cluster Server
+
+bestFit = array(NA,dim =c(1,5))
+
+ntest = 1000
+
+for (t in 1:length(bestFit[,1])){
+
+#Simulate 500 T-tests at boht points 1 and 2 T1 and T2 and calculate p-values p1 and p2
+
+Tvalues= pvalues = array(0,dim = c(ntest, length(N), length(cond[,1])))
+pvaluesDF = matrix(0, nrow = ntest*length(cond[,1])*2, ncol = 7)
+
+for (nn in 1:length(N)){
+  for (cc in 1:length(cond[,1])){
+    if (abs(p[cond[cc,2],nn]) > 0){
+      tt = 1
+      while(tt <= (abs(p[cond[cc,2],nn])*ntest)){
+
+        y=rnorm(N[nn]/2)
+        x=rnorm(N[nn]/2,d[cond[cc,1],nn],1)
+        if(t.test(x,y, var.equal=T)[3] < .05){
+          Tvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[1])
+          pvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[3])
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),1] = pvalues[tt,nn,cc]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),2] = 2*Tvalues[tt,nn,cc]/sqrt(N[nn])
+          # print(2*Tvalues[tt,nn,cc]/sqrt(N[nn]*2))
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),3] =paste( as.character(p[cond[cc,2],1]), as.character(p[cond[cc,2],2]))
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),4] = d[cond[cc,1],1]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),5] = d[cond[cc,1],1]-d[cond[cc,1],2]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),6]= nn
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),7]= cc
+          tt = tt+1
+        }
+      }
+
+      while(tt <= ntest & tt > (abs(p[cond[cc,2],nn])*ntest)){
+
+        y=rnorm(N[nn]/2)
+        x=rnorm(N[nn]/2,d[cond[cc,1],nn],1)
+          Tvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[1])
+          pvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[3])
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),1] = pvalues[tt,nn,cc]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),2] = 2*Tvalues[tt,nn,cc]/sqrt(N[nn])
+          # print(2*Tvalues[tt,nn,cc]/sqrt(N[nn]*2))
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),3] = paste(as.character(p[cond[cc,2],1]), as.character(p[cond[cc,2],2]))
+
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),4] = d[cond[cc,1],1]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),5] = d[cond[cc,1],1]-d[cond[cc,1],2]
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),6] = nn
+          pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),7] = cc
+          tt = tt+1
+      }
+    }
+
+
+
+else { for (tt in 1:ntest){
+        y=rnorm(N[nn]/2)
+        x=rnorm(N[nn]/2,d[cond[cc,1],nn],1)
+
+        Tvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[1])
+        pvalues[tt,nn,cc] = as.numeric(t.test(x,y, var.equal=T)[3])
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),1] = pvalues[tt,nn,cc]
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),2] = 2*Tvalues[tt,nn,cc]/sqrt(N[nn])
+        # print(2*Tvalues[tt,nn,cc]/sqrt(N[nn]*2))
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),3] = paste( as.character(p[cond[cc,2],1]), as.character(p[cond[cc,2],2]))
+
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),4] = d[cond[cc,1],1]
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),5] = d[cond[cc,1],1]-d[cond[cc,1],2]
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),6]= nn
+        pvaluesDF[tt+(ntest*(cc-1)) + ((nn-1) *ntest *length(cond[,1])),7]= cc
+      }
+    }
+  print(cc)}
+}
+
+
+colnames(pvaluesDF) = c("p", "obs_d", "hack","d1true", "dtrue", "time", "cond")
+
+pvaluesDF = as.data.frame(pvaluesDF)
+
+
+pvaluesDF$hack = factor(pvaluesDF$hack)
+pvaluesDF$obs_d =(as.numeric(as.character(pvaluesDF$obs_d)))
+pvaluesDF$p= as.numeric(as.character(pvaluesDF$p))
+
+pvaluesDF$dtrue = factor(pvaluesDF$dtrue)#,levels = c(0,.05,.15), labels = c("Stable d", "Weakly Decreased d", "Decreased d"))
+
+pvaluesDF$obs_d[pvaluesDF$time == 1] = pvaluesDF$obs_d[pvaluesDF$time == 1]/sqrt(pvaluesDF$obs_d[pvaluesDF$time == 1]^2 + (109^2-2*109)/(.5*109)^2)
+pvaluesDF$obs_d[pvaluesDF$time == 2] = pvaluesDF$obs_d[pvaluesDF$time == 2]/sqrt(pvaluesDF$obs_d[pvaluesDF$time == 2]^2 + (204^2-2*204)/(.5*204)^2)
+
+
+pvaluesDF$d1true = factor(pvaluesDF$d1true,levels = c(0.41,0.46, 0.51), labels = c("power T1 = .55 ", "power T1 = .65 ", "power T1 = .75"))
+
+pvaluesDF = pvaluesDF[!is.na(pvaluesDF[,1]),]
+
+ProbTest = cbind(aggregate(pvaluesDF$obs_d, list(pvaluesDF$cond,  pvaluesDF$hack,pvaluesDF$d1true, pvaluesDF$dtrue, pvaluesDF$time), median),
+      aggregate(pvaluesDF$p < .05, list(pvaluesDF$cond, pvaluesDF$hack,pvaluesDF$d1true, pvaluesDF$dtrue, pvaluesDF$time), mean)[,6],
+      aggregate(pvaluesDF$p < .05 & pvaluesDF$p >= .005, list(pvaluesDF$cond, pvaluesDF$hack,pvaluesDF$d1true, pvaluesDF$dtrue, pvaluesDF$time), mean)[,6],
+      aggregate(pvaluesDF$p < .005, list(pvaluesDF$cond, pvaluesDF$hack,pvaluesDF$d1true, pvaluesDF$dtrue, pvaluesDF$time), mean)[,6])
+
+
+ProbTest = cbind(ProbTest[ProbTest$Group.5 == 1,1:9],ProbTest[ProbTest$Group.5 == 2, 6:9])
+colnames(ProbTest) = c("cond", "hack","d1true", "dtrue", "time","d_obs", ".05", ".005.05", ".005","2_d", "2_.05", "2_.005.05", "2_.005")
+
+
+
+RMSE = rep(NA, length(ProbTest[,1]))
+
+for (l in 1:length(ProbTest[,1])){
+  RMSE[l] = sqrt(mean((as.numeric(ProbTest[l,c(7:9,11:13)])-(OrigProb[c(2:4,6:8)]))^2))
+}
+
+bestFit[t,1:2]= c(which(RMSE == min(RMSE)),as.character(ProbTest[which(RMSE == min(RMSE)), "cond"]))
+bestFit[t,3] = as.character(ProbTest[which(RMSE == min(RMSE)), "hack"])
+bestFit[t,4] = as.character(ProbTest[which(RMSE == min(RMSE)), "d1true"])
+bestFit[t,5] = as.character(ProbTest[which(RMSE == min(RMSE)), "dtrue"])
+}
+
+
+save(file ="simulatedresults.Rdata",list=c('ProbTest', 'pvaluesDF', 'bestFit'))
+```
+
+\subsection{Best fitting conditionss}
+
+```{r, Summarysimulations, eval = T}
+load("simulatedresults.Rdata")
+
+
+RMSE = rep(NA, length(ProbTest[,1]))
+
+
+
+for (l in 1:length(ProbTest[,1])){
+  RMSE[l] = sqrt(mean((as.numeric(ProbTest[l,c(6:13)])-(OrigProb))^2))
+}
+
+
+bestfitting = cbind(ProbTest[which(RMSE <= quantile(RMSE, probs = .01)),],RMSE[which(RMSE <= quantile(RMSE, probs = .01))])
+bestfitting[,6:14]= round(bestfitting[,6:14],3)
+bestfitting = bestfitting[order(bestfitting[,14]),]
+
+colnames(bestfitting)[14] = "RMSE"
+
+
+ProbTest[which(RMSE <= quantile(RMSE, probs = .001)),]
+
+
+sum(ProbTest$hack[which(RMSE <= quantile(RMSE, probs = .001))] %in% c("0.2 0.2","0.3 0.3","0.4 0.4","0.5 0.5","0.6 0.6","0.7 0.7","0.8 0.8","0.9 0.9","1 1"))
+
+sum(ProbTest$dtrue[which(RMSE <= quantile(RMSE, probs = .001))] %in% c("0"))
+
+length(ProbTest$hack[which(RMSE <= quantile(RMSE, probs = .001))])
+
+
+
+
+
+```
+
+\subsection{Best fitting conditions for central hypothesis tests}
+
+```{r SummaryMCSimulations}
+
+RMSE = rep(NA, length(ProbTest[,1]))
+
+
+
+for (l in 1:length(ProbTest[,1])){
+  RMSE[l] = sqrt(mean((as.numeric(ProbTest[l,c(6:13)])-(OrigProbC))^2))
+}
+
+
+bestfitting = cbind(ProbTest[which(RMSE <= quantile(RMSE, probs = .01)),],RMSE[which(RMSE <= quantile(RMSE, probs = .01))])
+bestfitting[,6:14]= round(bestfitting[,6:14],3)
+bestfitting = bestfitting[order(bestfitting[,14]),]
+
+colnames(bestfitting)[14] = "RMSE"
+
+
+ProbTest[which(RMSE <= quantile(RMSE, probs = .001)),]
+
+
+sum(ProbTest$hack[which(RMSE <= quantile(RMSE, probs = .001))] %in% c("0.2 0.2","0.3 0.3","0.4 0.4","0.5 0.5","0.6 0.6","0.7 0.7","0.8 0.8","0.9 0.9","1 1"))
+
+sum(ProbTest$dtrue[which(RMSE <= quantile(RMSE, probs = .001))] %in% c("0"))
+
+length(ProbTest$hack[which(RMSE <= quantile(RMSE, probs = .001))])
+
+
+
+
+
+
+```
