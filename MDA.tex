@@ -1,0 +1,234 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+  \usepackage{amssymb}
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={Methodological Detail Appendix: Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2011 and 2018},
+  pdfauthor={Antonia Krefeld-Schwalb and Benjamin Scheibehenne},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{Methodological Detail Appendix: Tighter Nets for Smaller Fishes?
+Mapping the Development of Statistical Practices in Consumer Research
+Between 2011 and 2018}
+\author{Antonia Krefeld-Schwalb and Benjamin Scheibehenne}
+\date{}
+
+\begin{document}
+\maketitle
+
+The following skritp runs all analyses reported in the manuscript
+``Tighter Nets for Smaller Fishes? Mapping the Development of
+Statistical Practices in Consumer Research Between 2011 and 2018''.
+
+To re-run the analyses make sure that the required packages are
+installed and the data files `Data.csv' with all arythmically coded
+manuscritpts, `Datahandcoded.csv' with all handcoded articles and
+``simulatedresults.Rdata'' with the simulations are in your working
+directory.
+
+\section{Preparation}
+
+\section{Development of the sample size over time}
+
+Calculation of the sample size for the F-test:
+
+Assuming that most of the test compare independent groups we
+approximated the sample sizes via \(N = df_2 + df_1 +1\) \newline K =
+Number of groups\newline \(df_1 = K-1\) \newline \(df_2 = N-K\) \newline
+
+Calculation of the sample size for the t-test: As for the F-tests we
+assumed that most of the studies represent manipulations between
+subjects. Thus we approximated the total sample size with the df of the
+t-tests: \(N = df +2\)
+
+\section{Development of the number of reported studies over time}
+
+\section{Development of effect sizes}
+
+The effect sizes of the F, \(\omega^2\), and t-test, d, were transformed
+to the commmon r-scale, to be analyzed and plotted together.
+
+\section{read and prepare data for  hand coded manuscripts}
+
+\begin{verbatim}
+## integer(0)
+\end{verbatim}
+
+\begin{verbatim}
+##             JCP       JCR       JMR
+## [1,] 2.01538462 3.0000000 2.1546392
+## [2,] 1.74193548 1.3882353 1.8414634
+## [3,] 0.09230769 0.1041667 0.2371134
+\end{verbatim}
+
+\begin{verbatim}
+##               8      9         10         11       12         13         14
+## [1,] 1.41176471 2.5625 1.93333333 2.50000000 1.913043 2.56521739 1.75000000
+## [2,] 1.35294118 1.5000 1.66666667 1.45454545 1.705882 1.68421053 1.47619048
+## [3,] 0.05882353 0.1875 0.06666667 0.07692308 0.000000 0.04347826 0.07142857
+##              15        16        17        18     19     20
+## [1,] 1.39130435 2.8095238 3.2941176 3.8823529 2.8750 3.6250
+## [2,] 1.44444444 2.0000000 1.8823529 1.3529412 2.0625 1.9375
+## [3,] 0.08695652 0.1904762 0.4117647 0.2941176 0.3750 0.3125
+\end{verbatim}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-1.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-2.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-3.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-4.pdf}
+
+\begin{verbatim}
+## [1] 0.003939296
+\end{verbatim}
+
+\begin{verbatim}
+## [1] 0.003521277
+\end{verbatim}
+
+\begin{verbatim}
+## [1] 0.05688623
+\end{verbatim}
+
+\begin{verbatim}
+## 
+##  2-sample test for equality of proportions with continuity correction
+## 
+## data:  c(sum(summaryTestsNoM$prep[summaryTestsNoM$exact == 1] < 0.05, na.rm = T), sum(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] < 0.05, na.rm = T)) out of c(sum(!is.na(summaryTestsNoM$prep[summaryTestsNoM$exact == 1])), sum(!is.na(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1])))
+## X-squared = 5.9723, df = 1, p-value = 0.01453
+## alternative hypothesis: two.sided
+## 95 percent confidence interval:
+##  0.009175812 0.084519330
+## sample estimates:
+##    prop 1    prop 2 
+## 0.5261976 0.4793500
+\end{verbatim}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-5.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-6.pdf}
+
+\begin{verbatim}
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+## [1] 1
+\end{verbatim}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-6-1.pdf}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-1.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-2.pdf}
+
+\begin{verbatim}
+##                  df      BIC
+## modlogN           6 5721.107
+## modlogNYear       4 5836.227
+## modlogNYearMturk  5 5705.992
+## modlogNMturk      4 5711.184
+## modlogNRand       3 5860.679
+\end{verbatim}
+
+\begin{verbatim}
+##         Year     Mturk
+## 1 0.04881561 0.4012537
+\end{verbatim}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-3.pdf}
+
+\begin{verbatim}
+##          Year     Mturk2
+## 1 -0.04575531 -0.1879931
+\end{verbatim}
+
+\begin{verbatim}
+##                   2.5 %      97.5 %
+## .sig01       0.43639482  0.60159477
+## .sigma       1.33243293  1.40050562
+## (Intercept) -1.05100032 -0.22822061
+## Year        -0.07473472 -0.01679250
+## Mturk2      -0.34593327 -0.03133308
+\end{verbatim}
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-4.pdf}
+
+\begin{verbatim}
+##          Year     Mturk2
+## 1 -0.04425073 -0.1937664
+\end{verbatim}
+
+\begin{verbatim}
+##                     2.5 %        97.5 %
+## .sig01       4.345328e-01  5.992325e-01
+## .sigma       1.330590e+00  1.398567e+00
+## (Intercept) -1.062433e+00 -2.421739e-01
+## Year        -7.315477e-02 -1.536552e-02
+## Mturk2      -3.514666e-01 -3.733689e-02
+## y           -7.003663e-05 -1.562115e-05
+\end{verbatim}
+
+\end{document}
