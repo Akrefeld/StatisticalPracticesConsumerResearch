@@ -944,24 +944,6 @@ ggplot(summaryTests[summaryTests$exact == 1,], aes(x = prep, y = pcalDir))+
   geom_hline(yintercept = .05)
 
 
-mean((round(summaryTests$pcalDir[summaryTests$exact == 1],2) - round(summaryTests$prep[summaryTests$exact == 1],2))^2, na.rm= T)
-mean((summaryTests$pcalDir[summaryTests$exact == 1] -summaryTests$prep[summaryTests$exact == 1])^2, na.rm= T)
-mean((summaryTests$pcalDir[summaryTests$exact == 1] -summaryTests$prep[summaryTests$exact == 1])^2 > .01^2, na.rm= T)
-
-
-
-mean(summaryTests$pcalDir > .05 & summaryTests$prep <= .05, na.rm=T)
-
-mean(summaryTests$pcalDir[summaryTests$exact == 1] >= .05 & summaryTests$prep[summaryTests$exact == 1] < .05, na.rm=T)
-
-mean(summaryTests$pcalDir[summaryTests$exact == 1] < .05 & summaryTests$prep[summaryTests$exact == 1] >= .05, na.rm=T)
-
-
-prop.test(x = c(sum(summaryTests$prep[summaryTests$exact == 1] < .05, na.rm = T), sum(summaryTests$pcalDir[summaryTests$exact == 1] < .05, na.rm = T)), n = c(sum(!is.na(summaryTests$prep[summaryTests$exact == 1])), sum(!is.na(summaryTests$pcalDir[summaryTests$exact == 1]))))
-
-prop.test(x = c(sum(summaryTests$prep[summaryTests$exact == 0] <= .05, na.rm = T), sum(summaryTests$pcalDir[summaryTests$exact == 0] <= .05, na.rm = T)), n = c(sum(!is.na(summaryTests$prep[summaryTests$exact == 0])), sum(!is.na(summaryTests$pcalDir[summaryTests$exact == 0]))))
-
-
 
 
 summaryTestsNoM = summaryTests[summaryTests$Centrality != "m",]
@@ -987,6 +969,10 @@ prop.test(x = c(sum(summaryTestsNoM$prep[summaryTestsNoM$exact == 1] < .05, na.r
 
 
 
+prop.test(x = c(sum(summaryTestsNoM$prep <= .05, na.rm = T), sum(summaryTestsNoM$pcalDir <= .05, na.rm = T)), n = c(sum(!is.na(summaryTestsNoM$prep)), sum(!is.na(summaryTestsNoM$pcalDir))))
+
+# If we further consider all p-values, reported in threshold and exact format and compare the proportion of test smaller or equal to .05 the dicrepancy is even larger: 78% of the reported p-values are p <= .05 and only 71% of the recalculated p-values.
+
 
 propP = matrix(NA, ncol =4, nrow =13)
 
@@ -997,20 +983,15 @@ propP[Y-7, ] = as.numeric(unlist(prop.test(x = c(sum(summaryTestsNoM$prep[summar
 
 propP = as.data.frame(propP)
 
-
-summaryTestsNoM$discr = summaryTestsNoM$prep <= .05 & summaryTestsNoM$pcalDir > .05
-
-
-which(summaryTestsNoM$discr == 1)
+# 
+# summaryTestsNoM$discr = summaryTestsNoM$prep <= .05 & summaryTestsNoM$pcalDir > .05
 
 
-summaryTestsNoM[2,]
-data[1,]
 
 summaryTestsNoM$Year = as.numeric(summaryTestsNoM$Year)
 
-modpex = glmer(discr ~ Year   +(1|Article), data=summaryTestsNoM[summaryTestsNoM$exact == 1, ], family = "binomial")
-modpthr = glmer(discr ~ Year   +(1|Article), data=summaryTestsNoM[summaryTestsNoM$exact == 0, ], family = "binomial")
+# modpex = glmer(discr ~ Year   +(1|Article), data=summaryTestsNoM[summaryTestsNoM$exact == 1, ], family = "binomial")
+# modpthr = glmer(discr ~ Year   +(1|Article), data=summaryTestsNoM[summaryTestsNoM$exact == 0, ], family = "binomial")
 
 
 
@@ -1020,24 +1001,304 @@ summaryTestsNoM$pcalTwo = summaryTestsNoM$pcal*2
 summaryTestsNoM$pcalTwo[summaryTestsNoM$pcalTwo >= 1] = .999
 
 
+summaryTests$pcalTwo = summaryTests$pcal*2
+
+summaryTests$pcalTwo[summaryTests$pcalTwo >= 1] = .999
+
+
 summaryTestsNoM$zscore= qnorm(1-summaryTestsNoM$pcalTwo/2)
 
 summaryTestsNoM$zscore[summaryTestsNoM$zscore == Inf] = 2.220446e-16
 
+summaryTestsNoM$zscoreD= qnorm(1-summaryTestsNoM$pcalDir/2)
 
-hist(abs(summaryTestsNoM$zscore[summaryTestsNoM$Year == 8 ]), breaks = seq(0,8.4,by =.2))
-
-
-hist(abs(summaryTestsNoM$zscore[summaryTestsNoM$Year == 17]), breaks = seq(0,8.4,by =.2))
+summaryTestsNoM$zscoreD[summaryTestsNoM$zscoreD == Inf] = 2.220446e-16
 
 
-hist(abs(summaryTestsNoM$zscore[summaryTestsNoM$Year == 20]), breaks = seq(0,8.4,by =.2))
 
+
+
+
+colnames(propP) = c("chi", "p","prep","pcal") 
+propP$Year = 2008:2020
+propP$diff = propP$pcal -propP$prep 
+round(propP,3)
+
+
+
+propPthr = matrix(NA, ncol =4, nrow =13)
+
+for (Y in 8:20){
+if(sum(!is.na(summaryTestsNoM$prep[summaryTestsNoM$exact == 0 & summaryTestsNoM$Year ==Y])) > 0){
+propPthr[Y-7, ] = as.numeric(unlist(prop.test(x = c(sum(summaryTestsNoM$prep[summaryTestsNoM$exact == 0 & summaryTestsNoM$Year ==Y ] <= .05, na.rm = T), sum(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 0 & summaryTestsNoM$Year ==Y] <= .05, na.rm = T)), n = c(sum(!is.na(summaryTestsNoM$prep[summaryTestsNoM$exact == 0 & summaryTestsNoM$Year ==Y])), sum(!is.na(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 0 & summaryTestsNoM$Year ==Y]))))[c(1,3:4)]))
+}}
+
+propPthr= as.data.frame(propPthr)
+
+colnames(propPthr) = c("chi", "p","prep","pcal") 
+propPthr$diff = propPthr$pcal -propPthr$prep 
+propPthr$Year = 2008:2020
+
+# Figure X illustrates how the discrepancy in reported and recalculated p-values changed between 2008 and 2020. Thereafter, the reported p-values are more likely to be correctly reported in 2020 compared to 2008.
+
+
+ggplot(propP, aes(x=factor(Year), y = diff, group = 1))+
+  geom_line()+
+  geom_line(data = propPthr, aes(x=factor(Year), y = diff, group = 1), linetype = "dashed")+
+  ylab(bquote(PR(p[cal]< .05) - PR(p[rep] < .05)))+
+  theme_bw()
+
+
+
+
+summaryTests$pDiff[summaryTests$pcal == summaryTests$prep ] = 0
+summaryTests$pDiff[summaryTests$pcal > summaryTests$prep ] = 1
+summaryTests$pDiff[summaryTests$pcal < summaryTests$prep ] = -1
+
+
+
+
+summaryTests$Catpcal =  cut(summaryTests$pcalDir, breaks = seq(0,1,length.out = 201), right = F)
+
+summaryTests$CatpcalCurve =  cut(summaryTests$pcalDir, breaks = seq(0,1,length.out = 101), right = F)
+
+#library("nnet")
+
+summaryTests$Year = as.numeric(summaryTests$Year)
+#test <- multinom(Catpcal  ~ Year, data = summaryTests[summaryTests$Centrality != "m",])
+
+# 
+# estMult = as.data.frame(cbind(c(coefficients(test)[,2]),c(summary(test)$standard.errors[,2])))
+# estMult = cbind(estMult,row.names(estMult))
+# colnames(estMult) = c("b", "SE", "int")
+# 
+# ggplot(estMult[1:12,], aes(x = int, y = b, ymin = b - 1.96*SE, ymax = b + 1.96*SE))+
+#   geom_pointrange()
+
+
+aggrsummaryTests = aggregate(summaryTests$Catpcal[summaryTests$Centrality != "m" & !is.na(summaryTests$pcalDir) ], list(summaryTests$Year[summaryTests$Centrality != "m"& !is.na(summaryTests$pcal) ],summaryTests$Catpcal[summaryTests$Centrality != "m" & !is.na(summaryTests$pcalDir) ] ), length)
+
+aggrsummaryTests2 = aggregate(summaryTests$CatpcalCurve[summaryTests$Centrality != "m" & !is.na(summaryTests$pcalDir) ], list(summaryTests$Year[summaryTests$Centrality != "m"& !is.na(summaryTests$pcal) ],summaryTests$CatpcalCurve[summaryTests$Centrality != "m" & !is.na(summaryTests$pcalDir) ] ), length)
+
+
+colnames(aggrsummaryTests) = c("year", "bin", "Freq")
+colnames(aggrsummaryTests2) = c("year", "bin", "Freq")
+#aggrsummaryTests$year = as.numeric(aggrsummaryTests$year)
+
+for ( i in 1:length(unique(summaryTests$Year))){
+aggrsummaryTests$Test[aggrsummaryTests$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
+aggrsummaryTests$Prop[aggrsummaryTests$year == i + 7] = aggrsummaryTests[aggrsummaryTests$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
+print(sum(aggrsummaryTests$Prop[aggrsummaryTests$year == i + 7]))
+
+aggrsummaryTests2$Test[aggrsummaryTests2$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
+aggrsummaryTests2$Prop[aggrsummaryTests2$year == i + 7] = aggrsummaryTests2[aggrsummaryTests$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
+
+
+}
+
+
+#aggrsummaryTests$bin = factor(aggrsummaryTests$bin, levels(aggrsummaryTests$bin), labels = seq(0,1,length.out = 201)[-201])
+
+
+labelsAxis= c(".005)",".01)",".015)",".02)",".025)",".03)",".035)",".04)",".045)",".05)",".055)",".06)",".065)",".07)")
+labelsAxis2= c(".01)",".02)",".03)",".04)",".05)",".06)",".07)")
+
+aggrsummaryTests = as.data.frame(aggrsummaryTests)
+
+aggrsummaryTests$year = as.numeric(aggrsummaryTests$year) + 2000
+
+aggrsummaryTests2 = as.data.frame(aggrsummaryTests2)
+
+aggrsummaryTests2$year = as.numeric(aggrsummaryTests2$year) + 2000
+
+ggplot(aggrsummaryTests2[as.numeric(as.character(factor(aggrsummaryTests2$bin, levels(aggrsummaryTests2$bin), labels = seq(0,1,length.out = 101)[-101]))) < .07,], aes(x = bin, y = Prop))+
+  geom_bar(stat= "identity")+
+  geom_vline(xintercept = 5.5)+
+  facet_wrap(.~ year)+
+  ylab("Proportion of Test Results")+
+  scale_x_discrete(name = "p-value", labels = labelsAxis2)+
+  theme_bw()+
+  theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
+  
+
+
+# ggplot(aggrsummaryTests[as.numeric(as.character(factor(aggrsummaryTests$bin, levels(aggrsummaryTests$bin), labels = seq(0,1,length.out = 201)[-201]))) < .07,], aes(color = bin, group = bin, x = factor(year), y = Prop))+
+#   geom_point()+
+#   geom_smooth(method = "lm")+
+#   facet_wrap(.~ bin, scales = "free")
+
+
+
+
+```
+
+```{r }
+
+
+
+
+summaryTests$Catpcal2 =  cut(summaryTests$pcalTwo, breaks = seq(0,1,length.out = 201), right = F)
+
+summaryTests$Catpcal2Curve =  cut(summaryTests$pcalTwo, breaks = seq(0,1,length.out = 101), right = F)
+
+aggrsummaryTestsTwo = aggregate(summaryTests$Catpcal2[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ], list(summaryTests$Year[summaryTests$Centrality != "m"& !is.na(summaryTests$pcal) ],summaryTests$Catpcal2[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] ), length)
+
+aggrsummaryTestsTwo2 = aggregate(summaryTests$Catpcal2Curve[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ], list(summaryTests$Year[summaryTests$Centrality != "m"& !is.na(summaryTests$pcal) ],summaryTests$Catpcal2Curve[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] ), length)
+
+
+colnames(aggrsummaryTestsTwo) = c("year", "bin", "Freq")
+colnames(aggrsummaryTestsTwo2) = c("year", "bin", "Freq")
+#aggrsummaryTestsTwo$year = as.numeric(aggrsummaryTestsTwo$year)
+
+aggrsummaryTestsTwo2 = as.data.frame(aggrsummaryTestsTwo2)
+aggrsummaryTestsTwo = as.data.frame(aggrsummaryTestsTwo)
+
+for ( i in 1:length(unique(summaryTests$Year))){
+aggrsummaryTestsTwo$Test[aggrsummaryTestsTwo$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
+aggrsummaryTestsTwo$Prop[aggrsummaryTestsTwo$year == i + 7] = aggrsummaryTestsTwo[aggrsummaryTestsTwo$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
+print(sum(aggrsummaryTestsTwo$Prop[aggrsummaryTestsTwo$year == i + 7]))
+
+aggrsummaryTestsTwo2$Test[aggrsummaryTestsTwo2$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
+aggrsummaryTestsTwo2$Prop[aggrsummaryTestsTwo2$year == i + 7] = aggrsummaryTestsTwo2[aggrsummaryTestsTwo2$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
+
+
+}
+
+
+#aggrsummaryTestsTwo$bin = factor(aggrsummaryTestsTwo$bin, levels(aggrsummaryTestsTwo$bin), labels = seq(0,1,length.out = 201)[-201])
+
+
+labelsAxis= c(".005)",".01)",".015)",".02)",".025)",".03)",".035)",".04)",".045)",".05)",".055)",".06)",".065)",".07)")
+labelsAxis2= c(".01)",".02)",".03)",".04)",".05)",".06)",".07)")
+
+aggrsummaryTestsTwo = as.data.frame(aggrsummaryTestsTwo)
+
+aggrsummaryTestsTwo$year = as.numeric(aggrsummaryTestsTwo$year) + 2000
+
+aggrsummaryTestsTwo2 = as.data.frame(aggrsummaryTestsTwo2)
+
+aggrsummaryTestsTwo2$year = as.numeric(aggrsummaryTestsTwo2$year) + 2000
+
+ggplot(aggrsummaryTestsTwo2[as.numeric(as.character(factor(aggrsummaryTestsTwo2$bin, levels(aggrsummaryTestsTwo2$bin), labels = seq(0,1,length.out = 101)[-101]))) < .07,], aes(x = bin, y = Prop))+
+  geom_bar(stat= "identity")+
+  geom_vline(xintercept = 5.5)+
+  facet_wrap(.~ year)+
+  ylab("Proportion of Test Results")+
+  scale_x_discrete(name = "p-value", labels = labelsAxis2)+
+  theme_bw()+
+  theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
+
+
+aggrsummaryTestsTwo2 = cbind(rbind(aggrsummaryTestsTwo2, aggrsummaryTests2), "direction" = c(rep("two-sided", length(aggrsummaryTestsTwo2[,1])),rep("one- and two-sided", length(aggrsummaryTests2[,1]))))
+
+
+ggplot(aggrsummaryTestsTwo2[as.numeric(as.character(factor(aggrsummaryTestsTwo2$bin, levels(aggrsummaryTestsTwo2$bin), labels = seq(0,1,length.out = 101)[-101]))) < .07,], aes(x = bin, y = Prop, fill = direction))+
+  geom_bar(stat= "identity", position = position_dodge(width = .8))+
+  geom_vline(xintercept = 5.5)+
+  facet_wrap(.~ year)+
+  ylab("Proportion of Test Results")+
+  scale_x_discrete(name = "p-value", labels = labelsAxis2)+
+  theme_bw()+
+  theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
+
+
+
+```
+
+
+```{r }
 
 # library(Rcpp)
-# library(zcurve)
-# zcurve(p = summaryTestsNoM$pcalTwo[summaryTestsNoM$Year == "8"], bootstrap = F)
+library(zcurve)
+z = zcurve(summaryTestsNoM$zscore)
+zD = zcurve(summaryTestsNoM$zscoreD)
 
+
+z8 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "8"])
+z9 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "9"])
+z10 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "10"])
+z11 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "11"])
+z12 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "12"])
+z13 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "13"])
+z14 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "14"])
+z15 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "15"])
+z16 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "16"])
+z17 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "17"])
+z18 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "18"])
+z19 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "19"])
+z20 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "20"])
+
+
+z8d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "8"])
+z9d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "9"])
+z10d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "10"])
+z11d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "11"])
+z12d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "12"])
+z13d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "13"])
+z14d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "14"])
+z15d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "15"])
+z16d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "16"])
+z17d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "17"])
+z18d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "18"])
+z19d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "19"])
+z20d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "20"])
+
+
+
+ERRs =
+cbind(rbind(
+  quantile(z8$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z9$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z10$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z11$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z12$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z13$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z14$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z15$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z16$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z17$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z18$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z19$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z20$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  
+  quantile(z8d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z9d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z10d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z11d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z12d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z13d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z14d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z15d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z16d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z17d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z18d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z19d$coefficients_boot[,1], prob = c(.025, .5,.975)),
+  quantile(z20d$coefficients_boot[,1], prob = c(.025, .5,.975))), "year" = rep(8:20,2), "direction" = rep(c("two-sided", "one and two-sided"),each = 13))
+  
+ERRs = as.data.frame(ERRs)
+ERRs$`2.5%` = as.numeric(ERRs$`2.5%`)
+
+ERRs$`50%` = as.numeric(ERRs$`50%`)
+
+ERRs$`97.5%` = as.numeric(ERRs$`97.5%`)
+
+ERRs$year = as.numeric(ERRs$year)
+
+
+ggplot(ERRs, aes( y = `50%`, x = year, ymin = `2.5%`,ymax = `97.5%`, linetype = direction, group = direction))+
+  geom_line(position = position_dodge(width = .2))+
+  ylab("Expected replication rate (95%CI)")+
+  scale_x_continuous(breaks = 8:20, n)+
+  geom_pointrange(position = position_dodge(width = .2))
+
+
+zD = zcurve(summaryTestsNoM$zscoreD, bootstrap = F)
+
+
+plot(z8, CI = TRUE, annotation = TRUE, main = "2008")
+
+
+plot(zD, CI = TRUE, annotation = TRUE, main = "2008-2020")
 
 summary(modpex)
 
@@ -1091,10 +1352,10 @@ summaryTests$Catpcal =  cut(summaryTests$pcalDir, breaks = seq(0,1,length.out = 
 
 summaryTests$CatpcalCurve =  cut(summaryTests$pcalDir, breaks = seq(0,1,length.out = 101), right = F)
 
-library("nnet")
+#library("nnet")
 
 summaryTests$Year = as.numeric(summaryTests$Year)
-test <- multinom(Catpcal  ~ Year, data = summaryTests[summaryTests$Centrality != "m",])
+#test <- multinom(Catpcal  ~ Year, data = summaryTests[summaryTests$Centrality != "m",])
 
 # 
 # estMult = as.data.frame(cbind(c(coefficients(test)[,2]),c(summary(test)$standard.errors[,2])))
