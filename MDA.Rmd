@@ -39,16 +39,20 @@ library(ggplot2)
 library(grid)
 library(gridExtra)
 library(sjPlot)
-
+library(RCurl)
 
 ```
 
 \section{Preparation}
 
 ```{r loadData, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
-data <- read.csv("Data.csv", sep = ";")
 
-# data = data[data$FFtest != "[]"|data$Tttest != "[]" ,]
+
+
+
+
+data <- read.csv("https://raw.githubusercontent.com/Akrefeld/StatisticalPracticesConsumerResearch/master/Data.csv", sep = ";")
+
 data = data[!(duplicated(data[,1:20])),]
 
 
@@ -466,7 +470,7 @@ rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, 
 
 
 ```{r, loadmanuallycoded}
-data<- read.csv("datahandcoded_January2021.csv", sep = ",")
+data<- read.csv("https://raw.githubusercontent.com/Akrefeld/StatisticalPracticesConsumerResearch/master/datahandcoded_January2021.csv", sep = ",")
 
 
 ```
@@ -1185,7 +1189,7 @@ ggplot(aggrsummaryTestsTwo2[as.numeric(as.character(factor(aggrsummaryTestsTwo2$
   
 ```
 
-```{r}
+```{r, eval = F}
 
 
 library(zcurve)
