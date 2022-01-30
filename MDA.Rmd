@@ -1,18 +1,30 @@
 ---
-title: "Methodological Detail Appendix: Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2011 and 2018"
+title: 'Methodological Detail Appendix: Tighter Nets for Smaller Fishes? Mapping the
+  Development of Statistical Practices in Consumer Research Between 2008 and 2020'
 author: "Antonia Krefeld-Schwalb and Benjamin Scheibehenne"
-output: pdf_document
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document: 
+    df_print: paged
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    code_folding: hide
+  html_notebook: 
+    toc: yes
+    toc_depth: '4'
 ---
 
-The following skritp runs all analyses reported in the manuscript "Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2011 and 2018". 
+The following skript runs all analyses reported in the manuscript "Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2008 and 2020". 
 
 To re-run the analyses make sure that the required packages are installed and the data files 
- 'Data.csv' with all arythmically coded manuscritpts,  'Datahandcoded.csv' with all handcoded articles and  "simulatedresults.Rdata" with the simulations are in your working directory.
+ 'Data.csv' with all text-mined coded manuscripts,  'Datahandcoded.csv' with all handcoded articles are in your working directory.
  
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, error=FALSE, message=FALSE,warning = FALSE)
+
 
 library(scales)
 library(knitr)
@@ -21,14 +33,12 @@ library(msm)
 library(coda)
 library(dplyr)
 library(lme4)
-library("devtools")
 library(tidyr)
 require(data.table)
-library(afex)
-require(parallel)
 library(ggplot2)
-library("emmeans")
-library(pwr)
+library(grid)
+library(gridExtra)
+library(sjPlot)
 
 
 ```
@@ -392,106 +402,43 @@ for (a in 1:length(unique(summaryTests$Article))){
 
 
 
-\section{Development of the sample size over time}
 
-Calculation of the sample size for the F-test:
   
-Assuming that most of the test compare independent groups we approximated the sample sizes via $N = df_2 + df_1 +1$ \newline
-K = Number of groups\newline
-$df_1 = K-1$ \newline
-$df_2 = N-K$ \newline
-
-Calculation of the sample size for the t-test:
-  As for the F-tests we assumed that most of the studies represent manipulations between subjects. Thus we approximated the total sample size with the df of the t-tests: $N = df +2$
-  
-
-
 
 ```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
 
-data_list  <- list(
-  y = summaryTests$N[!is.na(summaryTests$N)],
-  x1 = as.numeric(summaryTests$Journal[!is.na(summaryTests$N)]),
-  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N)]),
-  x3 = as.numeric(summaryTests$Article[!is.na(summaryTests$N)]),
-  x4 = as.numeric(summaryTests$Type[!is.na(summaryTests$N)]),
-  x5 = as.numeric(summaryTests$MturkCat[!is.na(summaryTests$N)]),
-  Nx1 = length(unique(as.numeric(summaryTests$Journal[!is.na(summaryTests$N)]))),
-  y2 = summaryTests$Npc[!is.na(summaryTests$N)]
-)
-
-
-
-
 
 NPCall = ggplot(summaryTests, aes(y = Npc, x= Year, col = Journal, group = Journal, shape = Journal))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .05, na.rm = TRUE) +
   stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
   coord_cartesian(ylim= c(0,500))+
   scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
-  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
-  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .05, na.rm = TRUE) +
+  scale_shape_manual(values = c(0,1,2), label= c("JCP", "JCR", "JMR"), name = "Journal")+
   scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
                 theme_classic()+  
                 ylab("Sample Size per Cell")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+                theme(tex = element_text(size=12),
+                      plot.title = element_text(hjust=.5, size=15, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), legend.position = "bottom" )
 
 ```
 
 
-\section{Development of the number of reported studies over time}
-
-
-```{r }
-
-## consider only those articles reporting at least one t or F-test
-
-NoStudies = ggplot(PerArticle[PerArticle$Tests > 0,], aes(y = NoStudy, x= factor(Year), col = Journal, group = Journal, shape = Journal))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
- stat_summary(fun.y = "mean", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size =  .75)+
- stat_summary(fun.data = "mean_cl_normal", fun.args=list(conf.int=0.95),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
-  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal")+
-  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .15, na.rm = TRUE) +
-  
-  scale_y_continuous(breaks = seq(1,13,1), name = "Number of Studies")+
-  scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
-                theme_classic()+  
-                # ggtitle("Number of Studies per Article")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
-
-
-```
-
-\section{Development of effect sizes}
+\section{Effect sizes}
 
 The effect sizes of the F, $\omega^2$, and t-test, d, were transformed to the commmon r-scale, to be analyzed and plotted together. 
 
 
 ```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
-data_list  <- list(
-  y = summaryTests$r[!is.na(summaryTests$r)],
-  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$r)]),
-  x1 = as.numeric(summaryTests$Journal[!is.na(summaryTests$r)]),
-  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$r)]),
-  x3 = as.numeric(summaryTests$Article[!is.na(summaryTests$r)]),
-  
-  x4 = as.numeric(summaryTests$MturkCat[!is.na(summaryTests$r)]),
-  Nx1 = length(unique(as.numeric(summaryTests$Journal[!is.na(summaryTests$r)])))
-)
 
 
 rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, shape = Journal))+
 #geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
   stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  scale_shape_discrete(label= c("JCP", "JCR", "JMR"), name = "Journal", guide = F)+
-  scale_color_manual(values = c("black","red","blue","orange"), label= c("Control","JCP", "JCR", "JMR"), name = "Journal", guide = F)+
+  scale_shape_manual(values = c(0,1,2), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_color_manual(values = c("black","red","blue","orange"), label= c("Control","JCP", "JCR", "JMR"), name = "Journal")+
   geom_hline(yintercept = .1, linetype = 2)+
   geom_text(aes(y = .13, x = 8.25, label = "small", col = "black" ))+
   geom_hline(yintercept = .3, linetype = 2)+
@@ -506,8 +453,8 @@ rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, 
   scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
                 theme_classic()+  
                 #ggtitle("Effect Size")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
+                theme(tex = element_text(size=12),
+                      plot.title = element_text(hjust=.5, size=15, face="bold"))+
   theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
 
 
@@ -519,9 +466,8 @@ rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, 
 
 
 ```{r, loadmanuallycoded}
-dataCheck <- read.csv("datahandcoded_January2021.csv", sep = ",")
+data<- read.csv("datahandcoded_January2021.csv", sep = ",")
 
-data = dataCheck
 
 ```
 
@@ -690,7 +636,7 @@ dfpTtest$Mturk[dfpTtest$Mturk ==" y"| dfpTtest$Mturk ==" y "] = "y"
 dfpTtest$Mturk = factor(dfpTtest$Mturk)
 
 errorsT = which(test != 0)
-errorsT 
+
 
 exactt = 1 - grepl("b|<|>",dfpTtest[,1])#str_count(dfpTtest[,1], "=") + str_count(dfpTtest[,1], "p")
 prept = as.numeric(as.character(dfpTtest[,2]))
@@ -806,31 +752,198 @@ summaryTests$HypothesisTest = as.factor(summaryTests$Centrality != "m")
 
 PerArticle$Journal[PerArticle$Journal == "JcP"] = "JCP"
 PerArticle$Journal[PerArticle$Journal == "JcR"] = "JCR"
+```
+
+### Number of studies, co-authors and proportion of field studies
+
+
+```{r}
+
+perJournal =
 
 rbind(
 tapply(PerArticle$NoStudies,PerArticle$Journal, mean),
 tapply(PerArticle$NoCoAuthors,PerArticle$Journal, mean, na.rm = T),
 tapply(PerArticle$FieldStudies> 0,PerArticle$Journal, mean))
+row.names(perJournal) = c("Nostudies", "NoCoauthors", "PR(Field Studies)")
 
 
-
-rbind(
+perYear = rbind(
 tapply(PerArticle$NoStudies,as.numeric(PerArticle$Year), mean),
 tapply(PerArticle$NoCoAuthors,as.numeric(PerArticle$Year), mean, na.rm = T),
 tapply(PerArticle$FieldStudies> 0,as.numeric(PerArticle$Year), mean))
 
+row.names(perYear) = c("Nostudies", "NoCoauthors", "PR(Field Studies)")
+
+kable(round(perJournal,2))
+kable(round(perYear,2))
+
 ```
 
 
+### Sample size per cell
+
+
+Calculation of the sample size for the F-test:
+  
+Assuming that most of the test compare independent groups we approximated the sample sizes via $N = df_2 + df_1 +1$ \newline
+K = Number of groups\newline
+$df_1 = K-1$ \newline
+$df_2 = N-K$ \newline
+
+Calculation of the sample size for the t-test:
+  As for the F-tests we assumed that most of the studies represent manipulations between subjects. Thus we approximated the total sample size with the df of the t-tests: $N = df +2$
+  
+The sample size per cell can next be estimated by dividing the total sample size with the number of conditions (k).
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+
+
+
+data_list  <- list(
+  y = summaryTests$Ncp[!is.na(summaryTests$N) &summaryTests$Within == "b"& summaryTests$Centrality != "m"],
+  y1 = summaryTests$r[!is.na(summaryTests$N) &summaryTests$Within == "b"& summaryTests$Centrality != "m"],
+  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$N) &summaryTests$Within == "b"&summaryTests$Centrality != "m"]),
+  x1 = as.factor(summaryTests$Journal[!is.na(summaryTests$N)&summaryTests$Within == "b" &summaryTests$Centrality != "m"]),
+  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N) &summaryTests$Within == "b"&summaryTests$Centrality != "m"]),
+  x3 = as.factor(summaryTests$Article[!is.na(summaryTests$N)&summaryTests$Within == "b" &summaryTests$Centrality != "m"]),
+  
+  x4 = as.factor(summaryTests$Mturk[!is.na(summaryTests$N) &summaryTests$Within == "b" &summaryTests$Centrality != "m"])
+)
+
+
+summaryTests$Year = as.numeric(summaryTests$Year)
+
+
+NCPhandcoded = ggplot(summaryTests[summaryTests$HypothesisTest == T & summaryTests$Within == "b" & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99, na.rm = T),], aes(y = Ncp, x= Year, group = Mturk, linetype = Mturk, shape = Mturk))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  scale_linetype_discrete(label= c("No", "Yes"), name = "Online Sample")+
+  scale_shape_manual(values = c(1,2), label= c("No", "Yes"), name = "Online Sample")+
+  ylab(expression(paste("Sample Size")))+
+  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .15, na.rm = TRUE) +
+  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
+                theme_classic()+
+  coord_cartesian(ylim = c(0,500))+
+                ggtitle("Sample Size")+
+                theme(tex = element_text(size=12),
+                      plot.title = element_text(hjust=.5, size=15, face="bold"))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), legend.position = "bottom" )
+
+
+
+grid.arrange(NCPhandcoded + ylab( "Sample Size per Cell") + ggtitle("Handcoded Articles"),
+             NPCall + ggtitle("Text Mined Articles"), ncol = 2, top = "Figure 1")
+
+
+datafreq = as.data.frame(cbind(data_list$y, log(data_list$y +1), data_list$y1, log((data_list$y1 + .00001)/(1-(data_list$y1 + .00001))), data_list$x1, data_list$x2, data_list$x3, data_list$x4))
+colnames(datafreq) = c("Npc", "logNpc", "r", "logr", "Journal", "Year", "Article", "Mturk")
+
+
+datafreq2 = datafreq[datafreq$Npc< quantile(datafreq$Npc, prob = .99, na.rm = T),]
+
+modlogNYearMturk= lmer(`logNpc`  ~ Year+Mturk   +(1|Article), data=datafreq2)
+
+tab_model(modlogNYearMturk)
+
+```
+
+### Effect size (r)
+
+
+The effect sizes of the F, $\omega^2$, and t-test, d, were transformed to the commmon r-scale, to be analyzed and plotted together. 
+
+
+```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
+
+
+
+
+datafreq$Journal= factor(datafreq$Article)
+datafreq$Article= factor(datafreq$Article)
+datafreq$Mturk= factor(datafreq$Mturk)
+
+summaryTests$HypothesisTest = factor(summaryTests$HypothesisTest)
+
+
+rHandcodedH = ggplot(summaryTests[summaryTests$HypothesisTest == T, ], aes(y = r, x= Year, shape =factor(Mturk), group= factor(Mturk), linetype = factor(Mturk)))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  ylab(expression(paste("r")))+
+  geom_jitter( alpha = .15) +
+  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
+   scale_shape_manual(values = c(1,2), label= c("No", "Yes"), name = "Online Sample")+
+    geom_hline(yintercept = .1, linetype = 2)+
+  geom_text(aes(y = .13, x = 8.25, label = "small"))+
+  geom_hline(yintercept = .3, linetype = 2)+
+  geom_text(aes(y = .33, x = 8.25, label = "medium"))+
+  geom_hline(yintercept = .5, linetype = 2)+
+  geom_text(aes(y = .53, x = 8.25, label = "large" ))+
+                theme_classic()+  
+                ggtitle("Hypothesis Tests")+
+                theme(tex = element_text(size=12),
+                      plot.title = element_text(hjust=.5, size=12))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
+
+
+
+rHandcodedM =ggplot(summaryTests[summaryTests$HypothesisTest == F, ], aes(y = r, x= Year, shape = Mturk, group= Mturk, linetype = Mturk))+
+#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
+  stat_summary(fun = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+    geom_hline(yintercept = .1, linetype = 2)+
+  geom_text(aes(y = .13, x = 8.25, label = "small"))+
+  geom_hline(yintercept = .3, linetype = 2)+
+  geom_text(aes(y = .33, x = 8.25, label = "medium"))+
+  geom_hline(yintercept = .5, linetype = 2)+
+  geom_text(aes(y = .53, x = 8.25, label = "large" ))+
+  ylab(expression(paste("r")))+
+  geom_jitter( alpha = .15) +
+  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
+   scale_shape_manual(values = c(1,2), label= c("No", "Yes"), name = "Online Sample")+
+                theme_classic()+  
+                ggtitle("Manipulation Checks")+
+                theme(tex = element_text(size=12),
+                      plot.title = element_text(hjust=.5, size=12))+
+  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
+
+
+
+
+grid.arrange(arrangeGrob(rHandcodedH+ theme(legend.position = "none"),  rHandcodedM + theme(legend.position = "none"), top =textGrob("Handcoded Articles", gp = gpar(fontsize = 20, fontface = "bold")), ncol = 1),            rAll + ggtitle("Text Mined Articles") + theme(legend.position = "none"), ncol = 2, top = "Figure 2")
+
+
+
+modr= lmer(logr ~ Year + Mturk  +(1|Article), data=datafreq)
+modrC= lmer(logr ~ Year + Mturk + logNpc   +(1|Article), data=datafreq)
+
+
+tab_model(modr)
+tab_model(modrC)
+
+
+
+###### The following plot cannot be knitted
+# p = ggplot(summaryTests[summaryTests$HypothesisTest == T & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99), ],aes(y = r, x= Ncp, color = Mturk))+
+#   geom_point(size = 2)+
+#   xlab("Sample size per cell")+
+#   ylab("Effect size r")+
+#ggtitle("Figure 3")
+#   scale_color_manual(values = c("black", "grey70"),label= c("No", "Yes"), name = "Online Sample")+
+#         theme_bw()+theme(text = element_text(size=12), legend.position = "bottom")
+# ggExtra::ggMarginal(p, type = "histogram")
+
+
+
+```
+
+
+### P-value distirbution and z-curve analysis
+
 ```{r, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
-ggplot(summaryTests[summaryTests$exact == 1,], aes(x = prep, y = pcal))+
-  geom_point()+
-  coord_cartesian(xlim = c(0,1), ylim = c(0,1))
 
-
-ggplot(summaryTests[summaryTests$exact == 1,], aes(x = prep, y = pcal))+
-  geom_point()+
-  coord_cartesian(xlim = c(0,.05), ylim = c(0,.05))
 
 
 summaryTests =summaryTests[!is.na(summaryTests$pcal),]
@@ -850,16 +963,6 @@ summaryTests$prep[summaryTests$prep > 1] = NA
 summaryTests$pcalDir[summaryTests$pcalDir > 1] = .99
 
 
-ggplot(summaryTests[summaryTests$exact == 1,], aes(x = prep, y = pcalDir))+
-  geom_point(alpha = .25)+
-  coord_cartesian(xlim= c(0,1),ylim= c(0,1))+
-  geom_hline(yintercept = .05)
-
-
-ggplot(summaryTests, aes(x = prep, y = pcalDir))+
-  geom_point(alpha = .25)+
-  coord_cartesian(xlim= c(0,1),ylim= c(0,1))+
-  geom_hline(yintercept = .05)
 
 
 
@@ -867,17 +970,17 @@ ggplot(summaryTests, aes(x = prep, y = pcalDir))+
 
 
 summaryTestsNoM = summaryTests[summaryTests$Centrality != "m",]
-
-
-# discrepancy between the reported and recalcualted p-values
-### Exact Format
- 
-mean((round(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1],2) - round(summaryTestsNoM$prep[summaryTestsNoM$exact == 1],2))^2, na.rm= T)
-mean((summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] -summaryTestsNoM$prep[summaryTestsNoM$exact == 1]), na.rm= T)
-mean((summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] -summaryTestsNoM$prep[summaryTestsNoM$exact == 1])^2 > .01^2, na.rm= T)
-
-
-prop.test(x = c(sum(summaryTestsNoM$prep[summaryTestsNoM$exact == 1] < .05, na.rm = T), sum(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] < .05, na.rm = T)), n = c(sum(!is.na(summaryTestsNoM$prep[summaryTestsNoM$exact == 1])), sum(!is.na(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1]))))
+# 
+# 
+# # discrepancy between the reported and recalculated p-values
+# ### Exact Format
+#  
+# mean((round(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1],2) - round(summaryTestsNoM$prep[summaryTestsNoM$exact == 1],2))^2, na.rm= T)
+# mean((summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] -summaryTestsNoM$prep[summaryTestsNoM$exact == 1]), na.rm= T)
+# mean((summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] -summaryTestsNoM$prep[summaryTestsNoM$exact == 1])^2 > .01^2, na.rm= T)
+# 
+# 
+# prop.test(x = c(sum(summaryTestsNoM$prep[summaryTestsNoM$exact == 1] < .05, na.rm = T), sum(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1] < .05, na.rm = T)), n = c(sum(!is.na(summaryTestsNoM$prep[summaryTestsNoM$exact == 1])), sum(!is.na(summaryTestsNoM$pcalDir[summaryTestsNoM$exact == 1]))))
 
 
 
@@ -951,14 +1054,14 @@ Propboth = cbind(rbind(propP,propPthr), "Format p-values" = rep( c("Exact (p=.05
 
 ggplot(Propboth, aes(x=factor(Year), y = diff, group = `Format p-values`, linetype = `Format p-values`))+
   geom_line()+
-  # #ggtitle("Figure 3")+
+  ggtitle("Figure 4")+
   # geom_line(data = propPthr, aes(x=factor(Year), y = diff, group = 1), linetype = "dashed")+
   ylab(bquote(PR(p[cal]< .05) - PR(p[rep] < .05)))+
   # scale_linetype_manual(values = direction)+
   xlab("Year")+
   geom_hline(yintercept = 0)+
   theme_bw()+
-  theme(text = element_text(size = 18))
+  theme(text = element_text(size=12))
 
 
 #crreate bins for plotting the p-curve
@@ -1005,26 +1108,12 @@ aggrsummaryTests2$year = as.numeric(aggrsummaryTests2$year) + 2000
 
 
 
-ggplot(aggrsummaryTests2[as.numeric(as.character(factor(aggrsummaryTests2$bin, levels(aggrsummaryTests2$bin), labels = seq(0,1,length.out = 101)[-101]))) < .07,], aes(x = bin, y = Prop))+
-  geom_bar(stat= "identity")+
-  geom_vline(xintercept = 5.5)+
-  facet_wrap(.~ year)+
-  ggtitle("Figure 4")+
-  ylab("Proportion of Test Results")+
-  scale_x_discrete(name = "p-value", labels = labelsAxis2)+
-  theme_bw()+
-  theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
-  
-
-
 
 
 
 
 
 ```
-
-
 
 ```{r}
 
@@ -1048,7 +1137,7 @@ aggrsummaryTestsTwo = as.data.frame(aggrsummaryTestsTwo)
 for ( i in 1:length(unique(summaryTests$Year))){
 aggrsummaryTestsTwo$Test[aggrsummaryTestsTwo$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
 aggrsummaryTestsTwo$Prop[aggrsummaryTestsTwo$year == i + 7] = aggrsummaryTestsTwo[aggrsummaryTestsTwo$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
-print(sum(aggrsummaryTestsTwo$Prop[aggrsummaryTestsTwo$year == i + 7]))
+
 
 aggrsummaryTestsTwo2$Test[aggrsummaryTestsTwo2$year == i + 7] = sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)  
 aggrsummaryTestsTwo2$Prop[aggrsummaryTestsTwo2$year == i + 7] = aggrsummaryTestsTwo2[aggrsummaryTestsTwo2$year == i + 7, 3] / sum(summaryTests$Year[summaryTests$Centrality != "m" & !is.na(summaryTests$pcal) ] == i+7)
@@ -1078,7 +1167,7 @@ aggrsummaryTestsTwo2$year = as.numeric(aggrsummaryTestsTwo2$year) + 2000
 #   ylab("Proportion of Test Results")+
 #   scale_x_discrete(name = "p-value", labels = labelsAxis2)+
 #   theme_bw()+
-#   theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
+#   theme(text = element_text(size=12), axis.text.x = element_text(size = 12,vjust = 0.5))
 
 
 aggrsummaryTestsTwo2 = cbind(rbind(aggrsummaryTestsTwo2, aggrsummaryTests2), "direction" = c(rep("two-sided", length(aggrsummaryTestsTwo2[,1])),rep("one- and two-sided", length(aggrsummaryTests2[,1]))))
@@ -1092,30 +1181,31 @@ ggplot(aggrsummaryTestsTwo2[as.numeric(as.character(factor(aggrsummaryTestsTwo2$
   ylab("Proportion of Test Results")+
   scale_x_discrete(name = "p-value", labels = labelsAxis2)+
   theme_bw()+
-  theme(text = element_text(size = 18), axis.text.x = element_text(size = 12,vjust = 0.5))
+  theme(text = element_text(size=12), axis.text.x = element_text(size = 12,vjust = 0.5))
   
 ```
-```{r, eval = F}
+
+```{r}
 
 
 library(zcurve)
-z = zcurve(summaryTestsNoM$zscore)
+# z = zcurve(summaryTestsNoM$zscore)
 zD = zcurve(summaryTestsNoM$zscoreD)
 
-
-z8 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "8"])
-z9 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "9"])
-z10 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "10"])
-z11 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "11"])
-z12 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "12"])
-z13 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "13"])
-z14 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "14"])
-z15 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "15"])
-z16 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "16"])
-z17 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "17"])
-z18 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "18"])
-z19 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "19"])
-z20 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "20"])
+# 
+# z8 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "8"])
+# z9 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "9"])
+# z10 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "10"])
+# z11 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "11"])
+# z12 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "12"])
+# z13 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "13"])
+# z14 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "14"])
+# z15 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "15"])
+# z16 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "16"])
+# z17 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "17"])
+# z18 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "18"])
+# z19 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "19"])
+# z20 = zcurve(summaryTestsNoM$zscore[summaryTestsNoM$Year == "20"])
 
 
 z8d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "8"])
@@ -1136,20 +1226,6 @@ z20d = zcurve(summaryTestsNoM$zscoreD[summaryTestsNoM$Year == "20"])
 
 ERRs =
 cbind(rbind(
-  quantile(z8$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z9$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z10$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z11$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z12$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z13$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z14$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z15$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z16$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z17$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z18$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z19$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z20$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  
   quantile(z8d$coefficients_boot[,1], prob = c(.025, .5,.975)),
   quantile(z9d$coefficients_boot[,1], prob = c(.025, .5,.975)),
   quantile(z10d$coefficients_boot[,1], prob = c(.025, .5,.975)),
@@ -1162,7 +1238,7 @@ cbind(rbind(
   quantile(z17d$coefficients_boot[,1], prob = c(.025, .5,.975)),
   quantile(z18d$coefficients_boot[,1], prob = c(.025, .5,.975)),
   quantile(z19d$coefficients_boot[,1], prob = c(.025, .5,.975)),
-  quantile(z20d$coefficients_boot[,1], prob = c(.025, .5,.975))), "year" = rep(8:20,2), "direction" = rep(c("two-sided", "one and two-sided"),each = 13))
+  quantile(z20d$coefficients_boot[,1], prob = c(.025, .5,.975))), "year" = 8:20)
   
 ERRs = as.data.frame(ERRs)
 ERRs$`2.5%` = as.numeric(ERRs$`2.5%`)
@@ -1173,177 +1249,19 @@ ERRs$`97.5%` = as.numeric(ERRs$`97.5%`)
 
 ERRs$year = as.numeric(ERRs$year)
 
-plot(z, CI = TRUE, annotation = TRUE, main = "2008-2020 - Two-sided TEsts (Figure 6B)")
 
 
-plot(zD, CI = TRUE, annotation = TRUE, main = "2008-2020 - Both (Figure 6A)")
+
+plot(zD, CI = TRUE, annotation = TRUE, main = "2008-2020 -(Figure 6)")
 
 
-ggplot(ERRs, aes( y = `50%`, x = year, ymin = `2.5%`,ymax = `97.5%`, linetype = direction, group = direction))+
-  geom_line(position = position_dodge(width = .2))+
+ggplot(ERRs, aes( y = `50%`, x = year, ymin = `2.5%`,ymax = `97.5%`,groupd = 1))+
+  geom_line()+
   ylab("Expected replicability rate (95%CI)")+
   ggtitle("Figure 7")+
-  scale_x_continuous(breaks = 8:20, n)+
-  geom_pointrange(position = position_dodge(width = .2))
+   scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
+  geom_pointrange()+
+  theme_bw()+
+  theme(text = element_text(size=12))
 ```
-
-
-```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
-
-library(grid)
-library(gridExtra)
-
-data_list  <- list(
-  y = summaryTests$Ncp[!is.na(summaryTests$N) &summaryTests$Within == "b"& summaryTests$Centrality != "m"],
-  y1 = summaryTests$r[!is.na(summaryTests$N) &summaryTests$Within == "b"& summaryTests$Centrality != "m"],
-  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$N) &summaryTests$Within == "b"&summaryTests$Centrality != "m"]),
-  x1 = as.factor(summaryTests$Journal[!is.na(summaryTests$N)&summaryTests$Within == "b" &summaryTests$Centrality != "m"]),
-  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N) &summaryTests$Within == "b"&summaryTests$Centrality != "m"]),
-  x3 = as.factor(summaryTests$Article[!is.na(summaryTests$N)&summaryTests$Within == "b" &summaryTests$Centrality != "m"]),
-  
-  x4 = as.factor(summaryTests$Mturk[!is.na(summaryTests$N) &summaryTests$Within == "b" &summaryTests$Centrality != "m"])
-)
-
-
-summaryTests$Year = as.numeric(summaryTests$Year)
-
-
-ggplot(summaryTests[summaryTests$Within == "b" & summaryTests$Centrality != "m" & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99, na.rm = T), ], aes(x = r, y = Ncp,color = Mturk, shape = Mturk)) +
-  scale_shape_discrete(label= c("No", "Yes"), name = "Online Sample")+
-  scale_color_discrete(label= c("No", "Yes"), name = "Online Sample")+
-  geom_point()+
-  theme_classic()+
-  ylab("Sample Size per Cell")+
-  theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
-
-NCPhandcoded = ggplot(summaryTests[summaryTests$HypothesisTest == T & summaryTests$Within == "b" & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99, na.rm = T),], aes(y = Ncp, x= Year, group = Mturk, linetype = Mturk, shape = Mturk))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
-  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  scale_linetype_discrete(label= c("No", "Yes"), name = "Online Sample")+
-  scale_shape_discrete(label= c("No", "Yes"), name = "Online Sample")+
-  ylab(expression(paste("Sample Size")))+
-  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .15, na.rm = TRUE) +
-  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
-                theme_classic()+
-  coord_cartesian(ylim = c(0,500))+
-                ggtitle("Sample Size")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=20, face="bold"))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
-
-
-
-grid.arrange(NCPhandcoded + ylab( "Sample Size per Cell") + ggtitle("Handcoded Articles"),
-             NPCall + ggtitle("Text Mined Articles"), ncol = 2, top = "Figure 1")
-
-
-datafreq = as.data.frame(cbind(data_list$y, log(data_list$y +1), data_list$y1, log((data_list$y1 + .00001)/(1-(data_list$y1 + .00001))), data_list$x1, data_list$x2, data_list$x3, data_list$x4))
-colnames(datafreq) = c("y", "logy", "r", "logr", "Journal", "Year", "Article", "Mturk")
-
-
-datafreq2 = datafreq[datafreq$y < quantile(datafreq$y, prob = .99, na.rm = T),]
-
-modlogN= lmer(logy ~ Year*Mturk   +(1|Article), data=datafreq2)
-modlogNYearMturk= lmer(logy  ~ Year+Mturk   +(1|Article), data=datafreq2)
-modlogNYear= lmer(logy  ~ Year  + (1|Article), data=datafreq2)
-modlogNMturk= lmer(logy  ~ Mturk  +(1|Article), data=datafreq2)
-modlogNRand= lmer(logy  ~ (1|Article), data=datafreq2)
-BIC(modlogN, modlogNYear,  modlogNYearMturk,  modlogNMturk, modlogNRand)
-
-coefficients(modlogNYearMturk)$Article[1,2:3]
-
-
-resutlsN = cbind(c(coefficients(modlogN)$Article[1,2:3]),confint(modlogN)[4:5,])
-
-
-
-
-data_list  <- list(
-  y = summaryTests$Ncp[!is.na(summaryTests$N) & summaryTests$Centrality != "m"],
-  y1 = summaryTests$r[!is.na(summaryTests$N) & summaryTests$Centrality != "m"],
-  x0 = as.numeric(summaryTests$N[!is.na(summaryTests$N) & summaryTests$Centrality != "m"]),
-  x1 = as.factor(summaryTests$Journal[!is.na(summaryTests$N)& summaryTests$Centrality != "m"]),
-  x2 = as.numeric(summaryTests$Year[!is.na(summaryTests$N) & summaryTests$Centrality != "m"]),
-  x3 = as.factor(summaryTests$Article[!is.na(summaryTests$N)& summaryTests$Centrality != "m"]),
-  
-  x4 = as.factor(summaryTests$Mturk[!is.na(summaryTests$N) & summaryTests$Centrality != "m"])
-)
-
-
-datafreq$Journal= factor(datafreq$Article)
-datafreq$Article= factor(datafreq$Article)
-datafreq$Mturk= factor(datafreq$Mturk)
-
-summaryTests$HypothesisTest = factor(summaryTests$HypothesisTest)
-
-
-rHandcodedH = ggplot(summaryTests[summaryTests$HypothesisTest == T, ], aes(y = r, x= Year, shape =factor(Mturk), group= factor(Mturk), linetype = factor(Mturk)))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
-  stat_summary(fun = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  ylab(expression(paste("r")))+
-  geom_jitter( alpha = .15) +
-  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
-    geom_hline(yintercept = .1, linetype = 2)+
-  geom_text(aes(y = .13, x = 8.25, label = "small"))+
-  geom_hline(yintercept = .3, linetype = 2)+
-  geom_text(aes(y = .33, x = 8.25, label = "medium"))+
-  geom_hline(yintercept = .5, linetype = 2)+
-  geom_text(aes(y = .53, x = 8.25, label = "large" ))+
-                theme_classic()+  
-                ggtitle("Hypothesis Tests")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=18))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
-
-
-
-rHandcodedM =ggplot(summaryTests[summaryTests$HypothesisTest == F, ], aes(y = r, x= Year, shape = Mturk, group= Mturk, linetype = Mturk))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
-  stat_summary(fun = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-   stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-    geom_hline(yintercept = .1, linetype = 2)+
-  geom_text(aes(y = .13, x = 8.25, label = "small"))+
-  geom_hline(yintercept = .3, linetype = 2)+
-  geom_text(aes(y = .33, x = 8.25, label = "medium"))+
-  geom_hline(yintercept = .5, linetype = 2)+
-  geom_text(aes(y = .53, x = 8.25, label = "large" ))+
-  ylab(expression(paste("r")))+
-  geom_jitter( alpha = .15) +
-  scale_x_continuous(name = "Year", breaks = c(8,9,10,11,12,13,14,15,16,17,18, 19, 20), labels = c("2008","","2010","","2012","","2014","","2016","","2018","","2020"))+
-                theme_classic()+  
-                ggtitle("Manipulation Checks")+
-                theme(tex = element_text(size=18),
-                      plot.title = element_text(hjust=.5, size=18))+
-  theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")))
-
-
-
-
-grid.arrange(arrangeGrob(rHandcodedH+ theme(legend.position = "none"),  rHandcodedM+ theme(legend.position = "none"), top =textGrob("Handcoded Articles", gp = gpar(fontsize = 20, fontface = "bold")), ncol = 1),
-            rAll + ggtitle("Text Mined Articles"), ncol = 2)
-
-
-
-modr= lmer(logr ~ Year + Mturk  +(1|Article), data=datafreq)
-modrC= lmer(logr ~ Year + Mturk + y  +(1|Article), data=datafreq)
-
-coefficients(modr)$Article[1,2:3]
-confint(modr)
-plot(modr)
-
-coefficients(modrC)$Article[1,2:3]
-confint(modrC)
-
-
-
-
-```
-
-
-
-
 

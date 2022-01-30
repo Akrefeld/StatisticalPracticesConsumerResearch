@@ -4,14 +4,19 @@
 %
 \documentclass[
 ]{article}
+\title{Methodological Detail Appendix: Tighter Nets for Smaller Fishes?
+Mapping the Development of Statistical Practices in Consumer Research
+Between 2011 and 2018}
+\author{Antonia Krefeld-Schwalb and Benjamin Scheibehenne}
+\date{}
+
+\usepackage{amsmath,amssymb}
 \usepackage{lmodern}
-\usepackage{amsmath}
-\usepackage{ifxetex,ifluatex}
-\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+\usepackage{iftex}
+\ifPDFTeX
   \usepackage[T1]{fontenc}
   \usepackage[utf8]{inputenc}
   \usepackage{textcomp} % provide euro and other symbols
-  \usepackage{amssymb}
 \else % if luatex or xetex
   \usepackage{unicode-math}
   \defaultfontfeatures{Scale=MatchLowercase}
@@ -60,15 +65,9 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \setcounter{secnumdepth}{-\maxdimen} % remove section numbering
-\ifluatex
+\ifLuaTeX
   \usepackage{selnolig}  % disable illegal ligatures
 \fi
-
-\title{Methodological Detail Appendix: Tighter Nets for Smaller Fishes?
-Mapping the Development of Statistical Practices in Consumer Research
-Between 2011 and 2018}
-\author{Antonia Krefeld-Schwalb and Benjamin Scheibehenne}
-\date{}
 
 \begin{document}
 \maketitle
@@ -85,7 +84,7 @@ directory.
 
 \section{Preparation}
 
-\section{Development of the sample size over time}
+\section{Sample Size per Cell}
 
 Calculation of the sample size for the F-test:
 
@@ -98,9 +97,7 @@ assumed that most of the studies represent manipulations between
 subjects. Thus we approximated the total sample size with the df of the
 t-tests: \(N = df +2\)
 
-\section{Development of the number of reported studies over time}
-
-\section{Development of effect sizes}
+\section{Effect sizes}
 
 The effect sizes of the F, \(\omega^2\), and t-test, d, were transformed
 to the commmon r-scale, to be analyzed and plotted together.
@@ -129,10 +126,10 @@ to the commmon r-scale, to be analyzed and plotted together.
 ## [3,] 0.08695652 0.1904762 0.4117647 0.2941176 0.3750 0.3125
 \end{verbatim}
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-1.pdf}
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-2.pdf}
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-3.pdf}
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-4.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-1.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-2.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-3.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-4.pdf}
 
 \begin{verbatim}
 ## [1] 0.003939296
@@ -160,8 +157,8 @@ to the commmon r-scale, to be analyzed and plotted together.
 ## 0.5261976 0.4793500
 \end{verbatim}
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-5.pdf}
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-6.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-5.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-4-6.pdf}
 
 \begin{verbatim}
 ## [1] 1
@@ -179,56 +176,207 @@ to the commmon r-scale, to be analyzed and plotted together.
 ## [1] 1
 \end{verbatim}
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-6-1.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-5-1.pdf}
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-1.pdf}
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-2.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-7-1.pdf}
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-7-2.pdf}
 
-\begin{verbatim}
-##                  df      BIC
-## modlogN           6 5721.107
-## modlogNYear       4 5836.227
-## modlogNYearMturk  5 5705.992
-## modlogNMturk      4 5711.184
-## modlogNRand       3 5860.679
-\end{verbatim}
+~
 
-\begin{verbatim}
-##         Year     Mturk
-## 1 0.04881561 0.4012537
-\end{verbatim}
+logNpc
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-3.pdf}
+Predictors
 
-\begin{verbatim}
-##          Year     Mturk2
-## 1 -0.04575531 -0.1879931
-\end{verbatim}
+Estimates
 
-\begin{verbatim}
-##                   2.5 %      97.5 %
-## .sig01       0.43639482  0.60159477
-## .sigma       1.33243293  1.40050562
-## (Intercept) -1.05100032 -0.22822061
-## Year        -0.07473472 -0.01679250
-## Mturk2      -0.34593327 -0.03133308
-\end{verbatim}
+CI
 
-\includegraphics{MDA_files/figure-latex/unnamed-chunk-8-4.pdf}
+p
 
-\begin{verbatim}
-##          Year     Mturk2
-## 1 -0.04425073 -0.1937664
-\end{verbatim}
+(Intercept)
 
-\begin{verbatim}
-##                     2.5 %        97.5 %
-## .sig01       4.345328e-01  5.992325e-01
-## .sigma       1.330590e+00  1.398567e+00
-## (Intercept) -1.062433e+00 -2.421739e-01
-## Year        -7.315477e-02 -1.536552e-02
-## Mturk2      -3.514666e-01 -3.733689e-02
-## y           -7.003663e-05 -1.562115e-05
-\end{verbatim}
+2.98
+
+2.69~--~3.28
+
+\textless0.001
+
+Year
+
+0.05
+
+0.03~--~0.07
+
+\textless0.001
+
+Mturk
+
+0.40
+
+0.34~--~0.47
+
+\textless0.001
+
+Random Effects
+
+σ2
+
+0.27
+
+τ00 Article
+
+0.19
+
+ICC
+
+0.41
+
+N Article
+
+154
+
+Observations
+
+3426
+
+Marginal R2 / Conditional R2
+
+0.165 / 0.505
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-7-3.pdf}
+
+~
+
+logr
+
+Predictors
+
+Estimates
+
+CI
+
+p
+
+(Intercept)
+
+-0.64
+
+-1.05~--~-0.23
+
+0.002
+
+Year
+
+-0.05
+
+-0.07~--~-0.02
+
+0.002
+
+Mturk {[}2{]}
+
+-0.19
+
+-0.34~--~-0.03
+
+0.019
+
+Random Effects
+
+σ2
+
+1.87
+
+τ00 Article
+
+0.27
+
+ICC
+
+0.13
+
+N Article
+
+154
+
+Observations
+
+3235
+
+Marginal R2 / Conditional R2
+
+0.021 / 0.144
+
+~
+
+logr
+
+Predictors
+
+Estimates
+
+CI
+
+p
+
+(Intercept)
+
+0.97
+
+0.53~--~1.42
+
+\textless0.001
+
+Year
+
+-0.02
+
+-0.04~--~0.01
+
+0.269
+
+Mturk {[}2{]}
+
+-0.02
+
+-0.17~--~0.13
+
+0.781
+
+logNpc
+
+-0.50
+
+-0.57~--~-0.42
+
+\textless0.001
+
+Random Effects
+
+σ2
+
+1.78
+
+τ00 Article
+
+0.21
+
+ICC
+
+0.11
+
+N Article
+
+154
+
+Observations
+
+3235
+
+Marginal R2 / Conditional R2
+
+0.087 / 0.183
+
+\includegraphics{MDA_files/figure-latex/unnamed-chunk-7-4.pdf}
 
 \end{document}
