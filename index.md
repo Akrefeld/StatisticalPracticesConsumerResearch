@@ -1,4 +1,4 @@
-## Welcome to GitHub Pages
+## Welcome to the repoistory for Tighter Nets for Smaller Fishes? Mapping the Development of Statistical Practices in Consumer Research Between 2008 and 2020
 
 You can use the [editor on GitHub](https://github.com/Akrefeld/StatisticalPracticesConsumerResearch/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
