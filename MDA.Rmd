@@ -928,6 +928,11 @@ tab_model(modr)
 tab_model(modrC)
 
 
+```
+
+
+
+```{r}
 
 ###### The following plot cannot be knitted
 # p = ggplot(summaryTests[summaryTests$HypothesisTest == T & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99), ],aes(y = r, x= Ncp, color = Mturk))+
