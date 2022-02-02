@@ -41,6 +41,7 @@ library(gridExtra)
 library(sjPlot)
 library(RCurl)
 
+
 ```
 
 \section{Preparation}
@@ -48,12 +49,8 @@ library(RCurl)
 ```{r loadData, echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
 
 
-
-
-
-data <- read.csv("https://raw.githubusercontent.com/Akrefeld/StatisticalPracticesConsumerResearch/master/Data.csv", sep = ";")
-
-data = data[!(duplicated(data[,1:20])),]
+library(RCurl)
+dsin<-read.csv("https://github.com/Akrefeld/StatisticalPracticesConsumerResearch/blob/ecef7700155b463c0168e595747e98da84010421/Data.csv", sep = ";")
 
 
 ```
@@ -470,7 +467,7 @@ rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, 
 
 
 ```{r, loadmanuallycoded}
-data<- read.csv("https://raw.githubusercontent.com/Akrefeld/StatisticalPracticesConsumerResearch/master/datahandcoded_January2021.csv", sep = ",")
+data<- read.csv("datahandcoded_January2021.csv", sep = ",")
 
 
 ```
@@ -928,11 +925,6 @@ tab_model(modr)
 tab_model(modrC)
 
 
-```
-
-
-
-```{r}
 
 ###### The following plot cannot be knitted
 # p = ggplot(summaryTests[summaryTests$HypothesisTest == T & summaryTests$Ncp < quantile(summaryTests$Ncp, prob = .99), ],aes(y = r, x= Ncp, color = Mturk))+
@@ -1194,7 +1186,7 @@ ggplot(aggrsummaryTestsTwo2[as.numeric(as.character(factor(aggrsummaryTestsTwo2$
   
 ```
 
-```{r, eval = F}
+```{r}
 
 
 library(zcurve)
