@@ -50,7 +50,10 @@ library(RCurl)
 
 
 library(RCurl)
-dsin<-read.csv("https://github.com/Akrefeld/StatisticalPracticesConsumerResearch/blob/ecef7700155b463c0168e595747e98da84010421/Data.csv", sep = ";")
+data <- read.csv("https://raw.githubusercontent.com/Akrefeld/StatisticalPracticesConsumerResearch/master/Data.csv", sep = ";")
+
+data = data[!(duplicated(data[,1:20])),]
+
 
 
 ```
@@ -410,18 +413,19 @@ for (a in 1:length(unique(summaryTests$Article))){
 
 
 NPCall = ggplot(summaryTests, aes(y = Npc, x= Year, col = Journal, group = Journal, shape = Journal))+
-  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .05, na.rm = TRUE) +
-  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
+  geom_point(position = position_jitterdodge(jitter.width = .1, dodge.width = 1), alpha = .02, na.rm = TRUE) +
+  stat_summary(fun = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = 1)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = 1), na.rm = TRUE, size = .75)+
   coord_cartesian(ylim= c(0,500))+
   scale_color_manual(values = c("red","blue","orange"), label= c("JCP", "JCR", "JMR"), name = "Journal")+
-  scale_shape_manual(values = c(0,1,2), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+  scale_shape_manual(values = c(15,16,17), label= c("JCP", "JCR", "JMR"), name = "Journal")+
   scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
                 theme_classic()+  
                 ylab("Sample Size per Cell")+
                 theme(tex = element_text(size=12),
                       plot.title = element_text(hjust=.5, size=15, face="bold"))+
   theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), legend.position = "bottom" )
+
 
 ```
 
@@ -434,11 +438,10 @@ The effect sizes of the F, $\omega^2$, and t-test, d, were transformed to the co
 ```{r echo=FALSE, eval = TRUE, error=FALSE, message=FALSE,warning = FALSE}
 
 
-rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, shape = Journal))+
-#geom_violin(draw_quantiles = c(0.025, 0.5, 0.975))+
-  stat_summary(fun.y = "median", geom = "line",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = .6), na.rm = TRUE, size = .75)+
-  scale_shape_manual(values = c(0,1,2), label= c("JCP", "JCR", "JMR"), name = "Journal")+
+rAll = ggplot(summaryTests, aes(y = r, x= Year, fill = Journal, col = Journal, group = Journal, shape = Journal))+
+  stat_summary(fun = "median", geom = "line",position = position_dodge(width = 1), na.rm = TRUE, size = .75)+
+  stat_summary(fun.data = "median_hilow", fun.args=list(conf.int=0.5),geom = "pointrange",position = position_dodge(width = 1), na.rm = TRUE, size = .75)+
+  scale_shape_manual(values = c(15,16,17), label= c("JCP", "JCR", "JMR"), name = "Journal")+
   scale_color_manual(values = c("black","red","blue","orange"), label= c("Control","JCP", "JCR", "JMR"), name = "Journal")+
   geom_hline(yintercept = .1, linetype = 2)+
   geom_text(aes(y = .13, x = 8.25, label = "small", col = "black" ))+
@@ -448,15 +451,14 @@ rAll = ggplot(summaryTests, aes(y = r, x= Year, col = Journal, group = Journal, 
   geom_text(aes(y = .53, x = 8.25, label = "large", col = "black" ))+
 
   ylab(expression(paste("Effect size r")))+
-  geom_point(position = position_jitterdodge(dodge.width = .6), alpha = .05, na.rm = TRUE) +
-  
-  #c
+  geom_point(position = position_jitterdodge(jitter.width = .1, dodge.width = 1), alpha = .025, na.rm = TRUE, aes(col = Journal, shape = Journal)) +
   scale_x_discrete(name = "Year", breaks = c(11,12,13,14,15,16,17,18), labels = c("2011","2012","2013","2014","2015","2016","2017","2018"))+
                 theme_classic()+  
                 #ggtitle("Effect Size")+
                 theme(tex = element_text(size=12),
                       plot.title = element_text(hjust=.5, size=15, face="bold"))+
   theme(axis.ticks.length=unit(-0.15, "cm"), axis.text.x = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")), axis.text.y = element_text(margin=unit(c(0.3,0.3,0.3,0.3), "cm")) )
+
 
 
 ```
